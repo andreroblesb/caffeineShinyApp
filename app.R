@@ -66,8 +66,13 @@ rk45 <- function(f_cafeina, t0, y0, h, n) {
 }
 
 ui <- navbarPage(
-  title = "☕️ Eliminación de Cafeína: Comparación de Métodos Numéricos",
+  title = "Eliminación de Cafeína",
   theme = bslib::bs_theme(bootswatch = "journal"),
+
+  tabPanel("Yay",
+           p("Cosas pdres")
+    
+  ),
   
   tabPanel("Simulador",
            sidebarLayout(
