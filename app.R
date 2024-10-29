@@ -74,11 +74,11 @@ ui <- fluidPage(
       h3("Parámetros de Entrada"),
       sliderInput("h", "Paso de tiempo (h):", 0.1, min = 0.01, max = 1, step = 0.01),
       sliderInput("n", "Número de pasos (n):", 30, min = 1, max = 200),
-      actionButton("solve_euler", "Resolver con Euler", icon = icon("chart-line"), class = "btn-primary", width = 215, space = 1),
-      actionButton("solve_rk4", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = 215, margin(50)),
-      actionButton("solve_rk45", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = 215, margin(5)),
-      actionButton("solve_comparar", "Comparar Métodos", icon = icon("balance-scale"), class = "btn-info", width = 215, margin(5)),
-      actionButton("advance_options", "Opciones avanzadas", icon = icon("chart-line"), class = "btn-secondary", width = 215, margin(5))
+      actionButton("solve_euler", "Resolver con Euler", icon = icon("chart-line"), class = "btn-primary", width = 215),
+      actionButton("solve_rk4", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = 215),
+      actionButton("solve_rk45", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = 215),
+      actionButton("solve_comparar", "Comparar Métodos", icon = icon("balance-scale"), class = "btn-info", width = 215),
+      actionButton("advance_options", "Opciones avanzadas", icon = icon("chart-line"), class = "btn-secondary", width = 215)
     ),
     mainPanel(
       plotOutput("plot_result", height = "600px"),
