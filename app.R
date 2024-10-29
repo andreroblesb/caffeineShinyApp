@@ -2,9 +2,11 @@ library(shiny)
 library(deSolve)
 library(ggplot2)
 
+# holeeee
+
 # Definir la ecuación diferencial para la eliminación de cafeína
-f_cafeina <- function(t, X) {
-  return(-0.15 * X)
+f_cafeina <- function(t, X, a) {
+  return(-0.15 * X + a)
 }
 
 # Método de Euler
