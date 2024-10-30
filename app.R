@@ -119,14 +119,13 @@ ui <- navbarPage(
              ),
              tags$li("Fármaco", style = "color: beige;"),
              p("Absorción", style = "color: beige;"), 
-             p("Xb = aXg"),
+             p("Xb = aXg", style = "color: beige;"),
              tags$ul(
                tags$li("Donde:", style = "color: beige;"),
                tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
-               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")
-             ),
+               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")),
              p("Liberación ", style = "color: beige;"),
-             p("Xb = -aXg"),
+             p("Xb = -aXg", style = "color: beige;"),
              tags$ul(
                tags$li("Donde:", style = "color: beige;"),
                tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
