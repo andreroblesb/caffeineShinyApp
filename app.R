@@ -176,6 +176,7 @@ ui <- navbarPage(
                sliderInput("h", "Paso de tiempo (h):", 0.1, min = 0.01, max = 1, step = 0.01),
                sliderInput("n", "Número de pasos (n):", 0, min = 1, max = 200),
                sliderInput("x", "Cantidad de cafeína:", 90, min = 1, max = 200),
+               sliderInput("x", "Consumo de cafeína:", 0, min = 1, max = 200),
                actionButton("solve_euler2", "Resolver con Euler", icon = icon("chart-line"), class = "btn-primary", width = '215px'),
                actionButton("solve_rk42", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = '215px'),
                actionButton("solve_rk452", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = '215px'),
