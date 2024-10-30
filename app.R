@@ -8,6 +8,37 @@ f_cafeina <- function(t, X, a) {
   return(-0.15 * X + a)
 }
 
+f_farmacos1 <- function(t, X) {
+  a <- 0.03
+  k <- 0.02
+  
+  Xg <- X[1] 
+  Xb <- X[2]  
+
+  dxdt_Xg <- -a * Xg
+  dxdt_Xb <- a * Xg - k * Xb
+
+  return(c(dxdt_Xg, dxdt_Xb))
+}
+
+metodo_euler_farmaco <- function(t0, Xg0, Xb0, h, n, a, k) {
+  t <- numeric(n + 1)
+  Xg <- numeric(n + 1)
+  Xb <- numeric(n + 1)
+  
+  t[1] <- t0
+  Xg[1] <- Xg0
+  Xb[1] <- Xb0
+  
+  for (i in 1:n) {
+    Xg[i + 1] <- Xg[i] + h * (a * Xg[i] - k * Xb[i])
+    Xb[i + 1] <- Xb[i] + h * (k * Xb[i] - a * Xg[i])
+    t[i + 1] <- t[i] + h
+  }
+  
+  return(data.frame(time = t, Xg = Xg, Xb = Xb))
+}
+
 # metodo Euler
 metodo_euler <- function(t0, X0, h, n, a) {
   t <- numeric(n + 1)
@@ -101,19 +132,44 @@ rkf45 <- function(t0, X0, h, n, a) {
 
 
 ui <- navbarPage(
-  title = "Eliminación de Cafeína",
-  theme = bslib::bs_theme(bootswatch = "journal"),
+  title = "Ecuaciones diferenciales",
+  theme = bslib::bs_theme(bootswatch = "solar"),
   
   tabPanel("Home",
-           h1("Simulación de Eliminación de Cafeína", style = "color: black;"),
-           h4("André Robles Bueckmann A01706832, Pablo Alberto Ramos Roldán A01707339, Yamil ÑÚñez Sosa A01711821", style = "color: black;"),
-           p("Este simulador compara diferentes métodos numéricos para modelar la eliminación de cafeína en el cuerpo humano.", style = "color: black;"),
-           p("Métodos numéricos:", style = "color: black;"),
+           h1("Simulación de ecuaciones diferenciales para el consumo de cafeína y fármacos. ", style = "color: beige;"),
+           p("Con el uso de ecuaciones diferenciales, en esta app nos dimos la tarea de observar cómo se comporta el metabolismo de la cafeína y observamos la absorción y liberación de un fármaco en el hígado. 
+             Para cada una de las modelaciones, tenemos una ecuación en el caso de la cafeína, y dos ecuaciones en el caso del fármaco, que representan el comportamiento dentro del cuerpo humano respecto al tiempo.", style = "color: beige;"),
            tags$ul(
-             tags$li("Método de Euler", style = "color: black;"),
-             tags$li("Método de Runge-Kutta de Orden 4 (RK4)", style = "color: black;"),
-             tags$li("Método de Runge-Kutta-Fehlberg 4(5) (RK45)", style = "color: black;"),
-             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: black;")
+             tags$li("Cafeína", style = "color: beige;"),
+             p("X = -0.15x + a", style = "color: beige;"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("X es la cantidad de café en el cuerpo", style = "color: beige;"),
+               tags$li("0.15 representa el porcentaje que elimina la cafeína por cada hora", style = "color: beige;"),
+               tags$li("a cantidad de consumo de café constante", style = "color: beige;")
+             ),
+             tags$li("Fármaco", style = "color: beige;"),
+             p("Absorción", style = "color: beige;"), 
+             p("Xb = aXg", style = "color: beige;"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
+               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")),
+             p("Liberación ", style = "color: beige;"),
+             p("Xb = -aXg", style = "color: beige;"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
+               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")
+             ),
+           ),
+           p("Este simulador compara diferentes métodos numéricos para modelar la eliminación de cafeína en el cuerpo humano.", style = "color: beige;"),
+           p("Métodos numéricos:", style = "color: beige;"),
+           tags$ul(
+             tags$li("Método de Euler", style = "color: beige;"),
+             tags$li("Método de Runge-Kutta de Orden 4 (RK4)", style = "color: beige;"),
+             tags$li("Método de Runge-Kutta-Fehlberg 4(5) (RK45)", style = "color: beige;"),
+             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: beige;")
            ),
   ),
   
@@ -123,7 +179,7 @@ ui <- navbarPage(
                h3("Parámetros de Entrada"),
                sliderInput("h", "Paso de tiempo (h):", 0.1, min = 0.01, max = 1, step = 0.01),
                sliderInput("n", "Número de pasos (n):", 1, min = 1, max = 200),
-               actionButton("solve_euler", "Resolver con Euler", icon = icon("chart-line"), class = "btn-primary", width = '215px'),
+               actionButton("solve_euler", "Euler - farmaco", icon = icon("chart-line"), class = "btn-primary", width = '215px'),
                actionButton("solve_rk4", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = '215px'),
                actionButton("solve_rk45", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = '215px'),
                actionButton("solve_rkf45", "Resolver con RK45 Fehlberg", icon = icon("chart-line"), class = "btn-secundary", width = '215px'),
@@ -161,19 +217,25 @@ ui <- navbarPage(
 
 server <- function(input, output) {
   observeEvent(input$solve_euler, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- 90
-    a <- 0
-    res <- metodo_euler(t0, X0, h, n, a)
+    h <- as.numeric(input$h)
+    n <- as.numeric(input$n)
+    Xg0 <- input$a
+    Xb0 <- 0 
+    k <- 0.02
+    a <- 0.03
+    
+    res <- metodo_euler_farmaco(0, Xg0, Xb0, h, n, a, k)
     
     output$plot_result_simulador <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "blue", size = 1.2) +
-        geom_point(color = "blue", size = 2) +
-        labs(title = "Método de Euler", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
+      ggplot(res, aes(x = time)) +
+        geom_line(aes(y = Xg, color = "Xg"), size = 1.2) +
+        geom_point(aes(y = Xg, color = "Xg"), size = 2) +
+        geom_line(aes(y = Xb, color = "Xb"), size = 1.2) +
+        geom_point(aes(y = Xb, color = "Xb"), size = 2) +
+        labs(title = "Método de Euler", x = "Tiempo (hr)", y = "Concentración (mg)") +
+        theme_minimal(base_size = 15) +
+        scale_color_manual(values = c("Xg" = "blue", "Xb" = "red")) +
+        guides(color = guide_legend(title = "Componente"))
     })
   })
   
