@@ -104,8 +104,17 @@ ui <- navbarPage(
   title = "Eliminación de Cafeína",
   theme = bslib::bs_theme(bootswatch = "journal"),
   
-  tabPanel("Yay",
-           p("Cosas pdres")
+  tabPanel("Home",
+           h1("Simulación de Eliminación de Cafeína", style = "color: black;"),
+           h4("André Robles Bueckmann A01706832, Pablo Alberto Ramos Roldán A01707339, Yamil ÑÚñez Sosa A01711821", style = "color: black;"),
+           p("Este simulador compara diferentes métodos numéricos para modelar la eliminación de cafeína en el cuerpo humano.", style = "color: black;"),
+           p("Métodos numéricos:", style = "color: black;"),
+           tags$ul(
+             tags$li("Método de Euler", style = "color: black;"),
+             tags$li("Método de Runge-Kutta de Orden 4 (RK4)", style = "color: black;"),
+             tags$li("Método de Runge-Kutta-Fehlberg 4(5) (RK45)", style = "color: black;"),
+             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: black;")
+           ),
   ),
   
   tabPanel("Simulador",
