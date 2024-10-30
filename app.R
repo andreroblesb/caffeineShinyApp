@@ -167,9 +167,17 @@ ui <- navbarPage(
            p("Métodos numéricos:", style = "color: beige;"),
            tags$ul(
              tags$li("Método de Euler", style = "color: beige;"),
+             p("Método numérico sencillo que se utiliza para aproximar soluciones a ecuaciones diferenciales. 
+               Es fácil de implementar pero menos preciso, especialmente para pasos de tiempo grandes.", style = "color: beige;"),
              tags$li("Método de Runge-Kutta de Orden 4 (RK4)", style = "color: beige;"),
+             p("Método numérico más preciso que el de Euler. Utiliza cuatro evaluaciones de la función 
+               por paso y tiene un buen equilibrio entre precisión y eficiencia.", style = "color: beige;"),
              tags$li("Método de Runge-Kutta-Fehlberg 4(5) (RK45)", style = "color: beige;"),
-             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: beige;")
+             p("Método de orden variable que adapta el tamaño del paso automáticamente para mejorar la precisión y la estabilidad.
+               Utiliza dos métodos de orden diferente para estimar el error de la solución.", style = "color: beige;"),
+             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: beige;"),
+             p("Método que es una versión mejorada del RK45 que ajusta el tamaño del paso según la tolerancia al error, 
+               buscando minimizar el error mientras mantiene la eficiencia computacional.", style = "color: beige;")
            ),
   ),
   
