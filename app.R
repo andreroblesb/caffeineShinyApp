@@ -101,11 +101,38 @@ rkf45 <- function(t0, X0, h, n, a) {
 
 
 ui <- navbarPage(
-  title = "Eliminación de Cafeína",
+  title = "Ecuaciones diferenciales",
   theme = bslib::bs_theme(bootswatch = "solar"),
   
   tabPanel("Home",
-           h1("Simulación de Eliminación de Cafeína", style = "color: beige;"),
+           h1("Simulación de ecuaciones diferenciales para el consumo de cafeína y fármacos. ", style = "color: beige;"),
+           p("Con el uso de ecuaciones diferenciales, en esta app nos dimos la tarea de observar cómo se comporta el metabolismo de la cafeína y observamos la absorción y liberación de un fármaco en el hígado. 
+             Para cada una de las modelaciones, tenemos una ecuación en el caso de la cafeína, y dos ecuaciones en el caso del fármaco, que representan el comportamiento dentro del cuerpo humano respecto al tiempo.", style = "color: beige;"),
+           tags$ul(
+             tags$li("Cafeína", style = "color: beige;"),
+             p("X = -0.15x + a", style = "color: beige;"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("X es la cantidad de café en el cuerpo", style = "color: beige;"),
+               tags$li("0.15 representa el porcentaje que elimina la cafeína por cada hora", style = "color: beige;"),
+               tags$li("a cantidad de consumo de café constante", style = "color: beige;")
+             ),
+             tags$li("Fármaco", style = "color: beige;"),
+             p("Absorción", style = "color: beige;"), 
+             p("Xb = aXg"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
+               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")
+             ),
+             p("Liberación ", style = "color: beige;"),
+             p("Xb = -aXg"),
+             tags$ul(
+               tags$li("Donde:", style = "color: beige;"),
+               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
+               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")
+             ),
+           ),
            p("Este simulador compara diferentes métodos numéricos para modelar la eliminación de cafeína en el cuerpo humano.", style = "color: beige;"),
            p("Métodos numéricos:", style = "color: beige;"),
            tags$ul(
