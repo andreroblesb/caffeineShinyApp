@@ -1,10 +1,11 @@
-t <- 1:200 # Cambiar el tiempo a 365 dias empezando desde 1 de enero.
+t <- 1:365 # Cambiar el tiempo a 365 dias empezando desde 1 de enero.
 N <- 100 # Mas personas? 1000? 2000? 10000?
-S <- rep(0, 200)  # Actualizar los dias para cada uno de SIR.
-I <- rep(0, 200) 
-R <- rep(0, 200) 
+S <- rep(0, 365)  # Actualizar los dias para cada uno de SIR.
+I <- rep(0, 365) 
+R <- rep(0, 365) 
+n <- rep(0, 365)
 
-pI <- 0.3 # Variable aleatoria usando runif(i) para cada dia que pasa, cambiando la proobabilidad ed infeccion.
+pI = 1
 pR <- 0.01 # Saber si estaba bien antes e enfermarse o no etc.
 pC <- 0.5 # Aqui esta establecido que AL MENOS la mitas de los INFECTADOS no los SUCEPTIBLES usan cubrebocas.
 
@@ -32,8 +33,11 @@ R[1] <- 0
 S[1] <- N - I[1] - R[1] 
 
 
-for (day in 2:200) {
+for (day in 2:365) {
+  
   face_mask <- rbinom(1, S[day - 1], pC)
+  
+  pI = runif(1) # Nueva probabilidad de infeccion para cada dia que pasa. 
   
   if (S[day - 1] > 0) {
     effective_pI <- pI * (1 - face_mask / S[day - 1])
@@ -47,13 +51,15 @@ for (day in 2:200) {
   S[day] <- S[day - 1] - new_infected
   I[day] <- I[day - 1] + new_infected - new_recovered
   R[day] <- R[day - 1] + new_recovered
+  n[day] <- S[day] + I[day] + R[day]
 }
 
-data.frame(Dia = t, Susceptibles = S, Infectados = I, Recuperados = R)
-
+resultados <- data.frame(Dia = t, Susceptibles = S, Infectados = I, Recuperados = R, Poblacion = n)
+print(resultados)
 # Sacar una grafica para cada uno ademas de la combinada.
 # Sacar una tabla para observar el comportamiento.
 
 plot(t, S, type = "l", col = "blue", ylim = c(0, N), xlab = "Dia", ylab = "Poblacion", main = "Modelo SIR")
 lines(t, I, col = "red")
 lines(t, R, col = "green")
+lines(t, n, col = "purple")
