@@ -156,7 +156,7 @@ ui <- navbarPage(
                tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
                tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")),
              p("Liberación ", style = "color: beige;"),
-             p("Xb = -aXg", style = "color: beige;"),
+             p("Xg = -aXg", style = "color: beige;"),
              tags$ul(
                tags$li("Donde:", style = "color: beige;"),
                tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
@@ -181,7 +181,7 @@ ui <- navbarPage(
            ),
   ),
   
-  tabPanel("Simulador",
+  tabPanel("Farmaco",
            sidebarLayout(
              sidebarPanel(
                h3("Parámetros de Entrada"),
@@ -200,7 +200,7 @@ ui <- navbarPage(
            )
   ),
   
-  tabPanel("Opciones avanzadas",
+  tabPanel("Cafeina",
            sidebarLayout(
              sidebarPanel(
                h3("Parámetros de Entrada"),
@@ -446,7 +446,8 @@ server <- function(input, output) {
       data.frame(t = res_euler$t, X = res_euler$X, Metodo = res_euler$Metodo),
       data.frame(t = res_rk4$t, X = res_rk4$X, Metodo = res_rk4$Metodo),
       data.frame(t = res_rk45$Tiempo, X = res_rk45$Cafeina, Metodo = res_rk45$Metodo),
-      data.frame(t = res_rkf45$t, X = res_rkf45$X, Metodo = res_rkf45$Metodo)
+      #data.frame(t = res_rkf45$t, X = res_rkf45$X, Metodo = res_rkf45$Metodo)
+      data.frame(t = res_rkf45$t[1:length(res_rk45$t)], X = res_rkf45$X[1:length(res_rk45$t)], Metodo = res_rkf45$Metodo)
     )
     
     output$plot_result_avanzadas <- renderPlot({
