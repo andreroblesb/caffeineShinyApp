@@ -3,12 +3,15 @@ library(deSolve)
 library(ggplot2)
 library(bslib)
 library(gridExtra)
+library(dplyr)
+library(tidyr)
 
 # INTERFAZ
 ui <- navbarPage(
   theme = bs_theme(version = 4, bootswatch = "flatly"),
   title = "Simulación de Modelos SIR",
   
+  # Primera pestaña: Inicio
   tabPanel("Inicio",
            fluidPage(
              # Encabezado principal con estilo
@@ -42,17 +45,15 @@ ui <- navbarPage(
                        )
                      ),
                      tags$div(
-                       p("Por otro lado, para el modelo estocastico, se utilizaron variables aleatorias para generar la simulacion. Para que la simulacion sea mas acertada
-                         decidimos involucrar otras variables que modifiquen el comportamiento de la simulacion conforme avanzan los dias."),
+                       p("Por otro lado, para el modelo estocastico, se utilizaron variables aleatorias para generar la simulacion. Para que la simulacion sea mas acertada decidimos involucrar otras variables que modifiquen el comportamiento de la simulacion conforme avanzan los dias."),
                        tags$ul(
                          tags$li("Tasa de infeccion generada por una variable aleatoria."),
                          tags$li("Probabilidad de que los infectados usen cubrebocas."),
                          tags$li("Probabilidad de recuperacion."),
                          tags$li("Probabilidad de que la poblacion este vacunada.")
                        ),
-                       p("Las condiciones iniciales para cada uno de los modelos ceran una poblacion que se puede seleccionar, y un individuo que este infectado con el viruz.
-                         Ambas simulaciones avanzaran al paso de un dia, donde el tiempo maximo sera de un año o 365 días.")
-                     ),
+                       p("Las condiciones iniciales para cada uno de los modelos ceran una poblacion que se puede seleccionar, y un individuo que este infectado con el viruz. Ambas simulaciones avanzaran al paso de un dia, donde el tiempo maximo sera de un año o 365 días.")
+                     )
                  ),
                  
                  # Tercera sección: Beneficios
@@ -61,7 +62,8 @@ ui <- navbarPage(
                      tags$ul(
                        tags$li("Generar gráficos interactivos para analizar la propagación de enfermedades."),
                        tags$li("Comparar modelos deterministas y estocásticos."),
-                       tags$li("Descargar resultados en formato CSV para análisis adicionales.")
+                       tags$li("Descargar resultados en formato CSV para análisis adicionales."),
+                       tags$li("Comparar el resultado de los errores de ambos modelos.")
                      )
                  )
              ),
@@ -127,6 +129,13 @@ ui <- navbarPage(
                                    )
                             )
                           )
+                 ),
+                 tabPanel("Resultados", 
+                          h4("Mean Squared Error (MSE)"),
+                          verbatimTextOutput("mseOutput"),
+                          fileInput("real_data_file", "Sube el archivo CSV con datos reales:",
+                                    accept = c(".csv")),
+                          plotOutput("errorComparisonPlot") # Nueva gráfica de comparación de errores
                  )
                )
              )
@@ -137,6 +146,14 @@ ui <- navbarPage(
 server <- function(input, output) {
   results_deterministic <- reactiveVal(NULL)
   results_stochastic <- reactiveVal(NULL)
+  mse_value <- reactiveVal(NULL)
+  
+  # Reactive to read the uploaded CSV
+  real_data <- reactive({
+    req(input$real_data_file)
+    read.csv(input$real_data_file$datapath) %>%
+      mutate(fecha = as.Date(fecha, format = "%Y-%m-%d"))
+  })
   
   observeEvent(input$simular, {
     if (input$model_type == "determinista" || input$model_type == "ambos") {
@@ -199,8 +216,16 @@ server <- function(input, output) {
       
       results_stochastic(data.frame(Dia = t, S = S, I = I, R = R))
     }
+    
+    if (input$model_type == "ambos") {
+      df_det <- results_deterministic()
+      df_sto <- results_stochastic()
+      mse <- mean((df_det$I - df_sto$I)^2)
+      mse_value(mse)
+    }
   })
   
+  # Gráfico principal
   output$sirPlot <- renderPlot({
     if (input$model_type == "determinista" && !is.null(results_deterministic())) {
       df <- results_deterministic()
@@ -263,6 +288,44 @@ server <- function(input, output) {
     }
   })
   
+  # Nueva gráfica de comparación de errores
+  output$errorComparisonPlot <- renderPlot({
+    if (input$model_type == "ambos" &&
+        !is.null(results_deterministic()) &&
+        !is.null(results_stochastic()) &&
+        !is.null(real_data())) {
+      
+      real <- real_data()
+      df_det <- results_deterministic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
+      df_sto <- results_stochastic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
+      
+      comparison <- real %>%
+        left_join(df_det, by = "fecha") %>%
+        left_join(df_sto, by = "fecha", suffix = c("_det", "_sto")) %>%
+        mutate(
+          error_det = abs(casos - I_det),
+          error_sto = abs(casos - I_sto)
+        ) %>%
+        pivot_longer(cols = c(error_det, error_sto), names_to = "modelo", values_to = "error")
+      
+      ggplot(comparison, aes(x = fecha, y = error, color = modelo)) +
+        geom_line() +
+        labs(title = "Comparación de Errores Absolutos", x = "Fecha", y = "Error Absoluto") +
+        scale_color_manual(values = c("error_det" = "red", "error_sto" = "blue")) +
+        theme_minimal()
+    }
+  })
+  
+  # Mostrar el MSE
+  output$mseOutput <- renderText({
+    if (!is.null(mse_value())) {
+      paste("El error cuadrado (MSE) entre el modelo determinista y estocástico es:", round(mse_value(), 4))
+    } else {
+      "Seleccione 'Ambos' para calcular el MSE."
+    }
+  })
+  
+  # Tablas y descargas
   output$resultsTableDet <- renderTable({
     results_deterministic()
   })
