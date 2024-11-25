@@ -2,6 +2,7 @@ library(shiny)
 library(deSolve)
 library(ggplot2)
 library(bslib)
+library(dplyr)
 library(gridExtra)  # For side-by-side plots
 
 # INTERFAZ
@@ -102,6 +103,7 @@ server <- function(input, output) {
       
       sir_deterministic <- ode(y = state, times = time, func = sir_model, parms = parameters)
       sir_deterministic <- as.data.frame(sir_deterministic)
+      sir_deterministic$model <- "Determinista"  # Add model label
     }
     
     if (input$model_type == "estocastico" || input$model_type == "ambos") {
@@ -137,34 +139,58 @@ server <- function(input, output) {
         R[day] <- R[day - 1] + new_recovered
       }
       
-      sir_stochastic <- data.frame(Dia = t, S = S, I = I, R = R)
+      sir_stochastic <- data.frame(
+        time = t,
+        S = S,
+        I = I,
+        R = R,
+        model = "Estocástico"  # Add model label
+      )
     }
     
     output$sirPlot <- renderPlot({
       if (input$model_type == "determinista") {
-        plot(sir_deterministic$time, sir_deterministic$S, type = "l", col = "blue", ylim = c(0, max(N, input$N_s)), xlab = "Tiempo", ylab = "Población", main = "Modelo Determinista SIR")
-        lines(sir_deterministic$time, sir_deterministic$I, col = "red")
-        lines(sir_deterministic$time, sir_deterministic$R, col = "green")
+        # Plot Deterministic Model
+        ggplot(sir_deterministic, aes(x = time)) +
+          geom_line(aes(y = S, color = "Susceptibles")) +
+          geom_line(aes(y = I, color = "Infectados")) +
+          geom_line(aes(y = R, color = "Recuperados")) +
+          labs(title = "Modelo Determinista SIR", x = "Tiempo", y = "Población") +
+          scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+          theme_minimal()
       } else if (input$model_type == "estocastico") {
-        plot(sir_stochastic$Dia, sir_stochastic$S, type = "l", col = "blue", ylim = c(0, max(N, input$N_d)), xlab = "Día", ylab = "Población", main = "Modelo Estocástico SIR")
-        lines(sir_stochastic$Dia, sir_stochastic$I, col = "red")
-        lines(sir_stochastic$Dia, sir_stochastic$R, col = "green")
+        # Plot Stochastic Model
+        ggplot(sir_stochastic, aes(x = time)) +
+          geom_line(aes(y = S, color = "Susceptibles")) +
+          geom_line(aes(y = I, color = "Infectados")) +
+          geom_line(aes(y = R, color = "Recuperados")) +
+          labs(title = "Modelo Estocástico SIR", x = "Día", y = "Población") +
+          scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+          theme_minimal()
       } else if (input$model_type == "ambos") {
-        p1 <- ggplot(sir_deterministic, aes(x = time)) +
-          geom_line(aes(y = S, color = "Susceptibles")) +
-          geom_line(aes(y = I, color = "Infectados")) +
-          geom_line(aes(y = R, color = "Recuperados")) +
-          labs(title = "Determinista", x = "Tiempo", y = "Población") +
-          theme_minimal()
+        # Combine both models into one data frame
+        combined_data <- rbind(
+          sir_deterministic %>% select(time, S, I, R, model),
+          sir_stochastic %>% select(time, S, I, R, model)
+        )
         
-        p2 <- ggplot(sir_stochastic, aes(x = Dia)) +
-          geom_line(aes(y = S, color = "Susceptibles")) +
-          geom_line(aes(y = I, color = "Infectados")) +
-          geom_line(aes(y = R, color = "Recuperados")) +
-          labs(title = "Estocástico", x = "Día", y = "Población") +
+        # Plot both models together
+        ggplot(combined_data, aes(x = time)) +
+          geom_line(aes(y = S, color = interaction(model, "Susceptibles"))) +
+          geom_line(aes(y = I, color = interaction(model, "Infectados"))) +
+          geom_line(aes(y = R, color = interaction(model, "Recuperados"))) +
+          labs(title = "Comparación de Modelos Determinista y Estocástico", x = "Tiempo", y = "Población") +
+          scale_color_manual(
+            values = c(
+              "Determinista.Susceptibles" = "blue",
+              "Determinista.Infectados" = "red",
+              "Determinista.Recuperados" = "green",
+              "Estocástico.Susceptibles" = "darkblue",
+              "Estocástico.Infectados" = "darkred",
+              "Estocástico.Recuperados" = "darkgreen"
+            )
+          ) +
           theme_minimal()
-        
-        grid.arrange(p1, p2, ncol = 2)
       }
     })
   })
