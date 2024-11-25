@@ -65,19 +65,19 @@ ui <- navbarPage(
                  tabPanel("Descarga", 
                           fluidRow(
                             column(6,
-                                   h4("Tabla Modelo Determinista"),
+                                   h4("Modelo Determinista"),
                                    conditionalPanel(
                                      condition = "input.model_type == 'determinista' || input.model_type == 'ambos'",
-                                     tableOutput("resultsTableDet"),
-                                     downloadButton("downloadDetTable", "Descargar Determinista")
+                                     downloadButton("downloadDetTable", "Descargar Determinista"),
+                                     tableOutput("resultsTableDet")
                                    )
                             ),
                             column(6,
-                                   h4("Tabla Modelo Estocástico"),
+                                   h4("Modelo Estocástico"),
                                    conditionalPanel(
                                      condition = "input.model_type == 'estocastico' || input.model_type == 'ambos'",
-                                     tableOutput("resultsTableSto"),
-                                     downloadButton("downloadStoTable", "Descargar Estocástico")
+                                     downloadButton("downloadStoTable", "Descargar Estocástico"),
+                                     tableOutput("resultsTableSto")
                                    )
                             )
                           )
@@ -87,7 +87,6 @@ ui <- navbarPage(
            )
   )
 )
-
 # SERVER
 server <- function(input, output) {
   results_deterministic <- reactiveVal(NULL)
@@ -157,41 +156,68 @@ server <- function(input, output) {
     }
   })
   
-  # Gráficas
   output$sirPlot <- renderPlot({
     if (input$model_type == "determinista" && !is.null(results_deterministic())) {
       df <- results_deterministic()
-      plot(df$time, df$S, type = "l", col = "blue", ylim = c(0, max(df$S, df$I, df$R)), xlab = "Tiempo", ylab = "Población", main = "Modelo Determinista SIR")
-      lines(df$time, df$I, col = "red")
-      lines(df$time, df$R, col = "green")
-      legend("topright", legend = c("Susceptibles", "Infectados", "Recuperados"), col = c("blue", "red", "green"), lty = 1)
+      ggplot(df, aes(x = time)) +
+        geom_line(aes(y = S, color = "Susceptibles")) +
+        geom_line(aes(y = I, color = "Infectados")) +
+        geom_line(aes(y = R, color = "Recuperados")) +
+        labs(title = "Modelo Determinista SIR", x = "Tiempo", y = "Población") +
+        scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+        theme_minimal()
     } else if (input$model_type == "estocastico" && !is.null(results_stochastic())) {
       df <- results_stochastic()
-      plot(df$Dia, df$S, type = "l", col = "blue", ylim = c(0, max(df$S, df$I, df$R)), xlab = "Día", ylab = "Población", main = "Modelo Estocástico SIR")
-      lines(df$Dia, df$I, col = "red")
-      lines(df$Dia, df$R, col = "green")
-      legend("topright", legend = c("Susceptibles", "Infectados", "Recuperados"), col = c("blue", "red", "green"), lty = 1)
+      ggplot(df, aes(x = Dia)) +
+        geom_line(aes(y = S, color = "Susceptibles")) +
+        geom_line(aes(y = I, color = "Infectados")) +
+        geom_line(aes(y = R, color = "Recuperados")) +
+        labs(title = "Modelo Estocástico SIR", x = "Día", y = "Población") +
+        scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+        theme_minimal()
     } else if (input$model_type == "ambos" && !is.null(results_deterministic()) && !is.null(results_stochastic())) {
       df_det <- results_deterministic()
+      df_det$model <- "Determinista"
       df_sto <- results_stochastic()
+      df_sto$model <- "Estocástico"
       
-      p1 <- ggplot(df_det, aes(x = time)) +
-        geom_line(aes(y = S, color = "Susceptibles")) +
-        geom_line(aes(y = I, color = "Infectados")) +
-        geom_line(aes(y = R, color = "Recuperados")) +
-        labs(title = "Modelo Determinista", x = "Tiempo", y = "Población") +
+      # Asegurarse de que los nombres de columnas sean consistentes
+      colnames(df_sto)[colnames(df_sto) == "Dia"] <- "time"
+      
+      combined_data <- rbind(
+        df_det %>% mutate(model = "Determinista"),
+        df_sto %>% mutate(model = "Estocástico")
+      )
+      
+      ggplot(combined_data, aes(x = time)) +
+        geom_line(aes(y = S, color = interaction(model, "Susceptibles")), size = 1) +
+        geom_line(aes(y = I, color = interaction(model, "Infectados")), size = 1) +
+        geom_line(aes(y = R, color = interaction(model, "Recuperados")), size = 1) +
+        labs(title = "Comparación de Modelos Determinista y Estocástico", 
+             x = "Tiempo", 
+             y = "Población") +
+        scale_color_manual(
+          values = c(
+            "Determinista.Susceptibles" = "blue",
+            "Determinista.Infectados" = "red",
+            "Determinista.Recuperados" = "green",
+            "Estocástico.Susceptibles" = "darkblue",
+            "Estocástico.Infectados" = "darkred",
+            "Estocástico.Recuperados" = "darkgreen"
+          ),
+          labels = c(
+            "Determinista.Susceptibles" = "Determinista - Susceptibles",
+            "Determinista.Infectados" = "Determinista - Infectados",
+            "Determinista.Recuperados" = "Determinista - Recuperados",
+            "Estocástico.Susceptibles" = "Estocástico - Susceptibles",
+            "Estocástico.Infectados" = "Estocástico - Infectados",
+            "Estocástico.Recuperados" = "Estocástico - Recuperados"
+          )
+        ) +
         theme_minimal()
-      
-      p2 <- ggplot(df_sto, aes(x = Dia)) +
-        geom_line(aes(y = S, color = "Susceptibles")) +
-        geom_line(aes(y = I, color = "Infectados")) +
-        geom_line(aes(y = R, color = "Recuperados")) +
-        labs(title = "Modelo Estocástico", x = "Día", y = "Población") +
-        theme_minimal()
-      
-      grid.arrange(p1, p2, ncol = 2)
     }
   })
+  
   
   # Tablas y descargas
   output$resultsTableDet <- renderTable({
@@ -217,5 +243,4 @@ server <- function(input, output) {
   )
 }
 
-# Ejecuta la app
 shinyApp(ui = ui, server = server)
