@@ -2,441 +2,344 @@ library(shiny)
 library(deSolve)
 library(ggplot2)
 library(bslib)
+library(gridExtra)
+library(dplyr)
+library(tidyr)
 
-f_cafeina <- function(t, X, a) {
-  return(-0.15 * X + a)
-}
-f_farmacos1 <- function(t, X) {
-  a <- 0.03
-  k <- 0.02
-  
-  Xg <- X[1] 
-  Xb <- X[2]  
-  dxdt_Xg <- -a * Xg
-  dxdt_Xb <- a * Xg - k * Xb
-  return(c(dxdt_Xg, dxdt_Xb))
-}
-metodo_euler_farmaco <- function(t0, Xg0, Xb0, h, n, a, k) {
-  t <- numeric(n + 1)
-  Xg <- numeric(n + 1)
-  Xb <- numeric(n + 1)
-  
-  t[1] <- t0
-  Xg[1] <- Xg0
-  Xb[1] <- Xb0
-  
-  for (i in 1:n) {
-    Xg[i + 1] <- Xg[i] + h * (a * Xg[i] - k * Xb[i])
-    Xb[i + 1] <- Xb[i] + h * (k * Xb[i] - a * Xg[i])
-    t[i + 1] <- t[i] + h
-  }
-  
-  return(data.frame(time = t, Xg = Xg, Xb = Xb))
-}
-# metodo Euler
-metodo_euler <- function(t0, X0, h, n, a) {
-  t <- numeric(n + 1)
-  X <- numeric(n + 1)
-  t[1] <- t0
-  X[1] <- X0
-  
-  for (i in 1:n) {
-    X[i + 1] <- X[i] + h * f_cafeina(t[i], X[i], a)
-    t[i + 1] <- t[i] + h
-  }
-  
-  return(data.frame(t = t, X = X))
-}
-
-runge_kutta4 <- function(t0, X0, h, n, a) {
-  t <- numeric(n + 1)
-  X <- numeric(n + 1)
-  t[1] <- t0
-  X[1] <- X0
-  for (i in 1:n) {
-    k1 <- h * f_cafeina(t[i], X[i], a)
-    k2 <- h * f_cafeina(t[i] + h / 2, X[i] + k1 / 2, a)
-    k3 <- h * f_cafeina(t[i] + h / 2, X[i] + k2 / 2, a)
-    k4 <- h * f_cafeina(t[i] + h, X[i] + k3, a)
-    
-    X[i + 1] <- X[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6
-    t[i + 1] <- t[i] + h
-    return(data.frame(t = t, X = X))
-  }
-}
-  # El rk45
-rk45 <- function(t0, X0, h, n, a) {
-    t <- numeric(n + 1)
-    y <- numeric(n + 1)
-    t[1] <- t0
-    y[1] <- X0
-    for (i in 1:n) {
-      k1 <- h * f_cafeina(t[i], y[i], a)
-      k2 <- h * f_cafeina(t[i] + h / 4, y[i] + k1 / 4, a)
-      k3 <- h * f_cafeina(t[i] + 3 * h / 8, y[i] + 3 * k1 / 32 + 9 * k2 / 32, a)
-      k4 <- h * f_cafeina(t[i] + 12 * h / 13, y[i] + 1932 * k1 / 2197 - 7200 * k2 / 2197 + 7296 * k3 / 2197, a)
-      k5 <- h * f_cafeina(t[i] + h, y[i] + 439 * k1 / 216 - 8 * k2 + 3680 * k3 / 513 - 845 * k4 / 4104, a)
-      k6 <- h * f_cafeina(t[i] + h / 2, y[i] - 8 * k1 / 27 + 2 * k2 - 3544 * k3 / 2565 + 1859 * k4 / 4104 - 11 * k5 / 40, a)
-      
-      y[i + 1] <- y[i] + (16 * k1 / 135 + 6656 * k3 / 12825 + 28561 * k4 / 56430 - 9 * k5 / 50 + 2 * k6 / 55)
-      t[i + 1] <- t[i] + h
-    }
-  
-    return(data.frame(Tiempo = t, Cafeina = y))
-}
-
-rkf45 <- function(t0, X0, h, n, a) {
-  t <- numeric(n + 1)
-  y <- numeric(n + 1)
-  t[1] <- t0
-  y[1] <- X0
-  tol <- 1e-5
-  i <- 1
-  while (i <= n) {
-    k1 <- h * f_cafeina(t[i], y[i], a)
-    k2 <- h * f_cafeina(t[i] + h / 4, y[i] + k1 / 4, a)
-    k3 <- h * f_cafeina(t[i] + 3 * h / 8, y[i] + 3 * k1 / 32 + 9 * k2 / 32, a)
-    k4 <- h * f_cafeina(t[i] + 12 * h / 13, y[i] + 1932 * k1 / 2197 - 7200 * k2 / 2197 + 7296 * k3 / 2197, a)
-    k5 <- h * f_cafeina(t[i] + h, y[i] + 439 * k1 / 216 - 8 * k2 + 3680 * k3 / 513 - 845 * k4 / 4104, a)
-    k6 <- h * f_cafeina(t[i] + h / 2, y[i] - 8 * k1 / 27 + 2 * k2 - 3544 * k3 / 2565 + 1859 * k4 / 4104 - 11 * k5 / 40, a)
-    
-    y5 = y[i] + (16 * k1 / 135 + 6656 * k3 / 12825 + 28561 * k4 / 56430 - 9 * k5 / 50 + 2 * k6 / 55)
-    y4 = y[i] + (25 * k1 / 216 + 1408 * k3 / 2565 + 2197 * k4 / 4104 - k5 / 5)
-    error = abs(y5 - y4)
-    
-    if (error < tol) {
-      t[i + 1] = t[i] + h
-      y[i + 1] = y5
-      i <- i + 1
-      if (error < tol / 2) h <- h * 2  
-    } else {
-      h <- h / 2  
-    }
-    if (i == n) break  
-  }
-  
-  return(data.frame(t = t, X = y))
-}
+# INTERFAZ
 ui <- navbarPage(
-  title = "Ecuaciones diferenciales",
-  theme = bslib::bs_theme(bootswatch = "solar"),
+  theme = bs_theme(version = 4, bootswatch = "flatly"),
+  title = "SARS-COV2 visto desde SIR",
   
-  tabPanel("Home",
-           h1("Simulación de ecuaciones diferenciales para el consumo de cafeína y fármacos. ", style = "color: beige;"),
-           p("Con el uso de ecuaciones diferenciales, en esta app nos dimos la tarea de observar cómo se comporta el metabolismo de la cafeína y observamos la absorción y liberación de un fármaco en el hígado. 
-             Para cada una de las modelaciones, tenemos una ecuación en el caso de la cafeína, y dos ecuaciones en el caso del fármaco, que representan el comportamiento dentro del cuerpo humano respecto al tiempo.", style = "color: beige;"),
-           tags$ul(
-             tags$li("Cafeína", style = "color: beige;"),
-             p("X = -0.15x + a", style = "color: beige;"),
-             tags$ul(
-               tags$li("Donde:", style = "color: beige;"),
-               tags$li("X es la cantidad de café en el cuerpo", style = "color: beige;"),
-               tags$li("0.15 representa el porcentaje que elimina la cafeína por cada hora", style = "color: beige;"),
-               tags$li("a cantidad de consumo de café constante", style = "color: beige;")
-             ),
-             tags$li("Fármaco", style = "color: beige;"),
-             p("Absorción", style = "color: beige;"), 
-             p("Xb = aXg", style = "color: beige;"),
-             tags$ul(
-               tags$li("Donde:", style = "color: beige;"),
-               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
-               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")),
-             p("Liberación ", style = "color: beige;"),
-             p("Xb = -aXg", style = "color: beige;"),
-             tags$ul(
-               tags$li("Donde:", style = "color: beige;"),
-               tags$li("Xg cantidad de fármaco en el sistema", style = "color: beige;"),
-               tags$li("a es el porcentaje de eliminación por minuto", style = "color: beige;")
-             ),
-           ),
-           p("Este simulador compara diferentes métodos numéricos para modelar la eliminación de cafeína en el cuerpo humano.", style = "color: beige;"),
-           p("Métodos numéricos:", style = "color: beige;"),
-           tags$ul(
-             tags$li("Método de Euler", style = "color: beige;"),
-             p("Método numérico sencillo que se utiliza para aproximar soluciones a ecuaciones diferenciales. 
-               Es fácil de implementar pero menos preciso, especialmente para pasos de tiempo grandes.", style = "color: beige;"),
-             tags$li("Método de Runge-Kutta de Orden 4 (RK4)", style = "color: beige;"),
-             p("Método numérico más preciso que el de Euler. Utiliza cuatro evaluaciones de la función 
-               por paso y tiene un buen equilibrio entre precisión y eficiencia.", style = "color: beige;"),
-             tags$li("Método de Runge-Kutta-Fehlberg 4(5) (RK45)", style = "color: beige;"),
-             p("Método de orden variable que adapta el tamaño del paso automáticamente para mejorar la precisión y la estabilidad.
-               Utiliza dos métodos de orden diferente para estimar el error de la solución.", style = "color: beige;"),
-             tags$li("Método de Runge-Kutta-Fehlberg adaptativo (RK45 Fehlberg)", style = "color: beige;"),
-             p("Método que es una versión mejorada del RK45 que ajusta el tamaño del paso según la tolerancia al error, 
-               buscando minimizar el error mientras mantiene la eficiencia computacional.", style = "color: beige;")
-           ),
-  ),
-  
-  tabPanel("Simulador",
-           sidebarLayout(
-             sidebarPanel(
-               h3("Parámetros de Entrada"),
-               sliderInput("h", "Paso de tiempo (h):", 0.1, min = 0.01, max = 1, step = 0.01),
-               sliderInput("n", "Número de pasos (n):", 1, min = 1, max = 200),
-               actionButton("solve_euler", "Euler - farmaco", icon = icon("chart-line"), class = "btn-primary", width = '215px'),
-               actionButton("solve_rk4", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = '215px'),
-               actionButton("solve_rk45", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = '215px'),
-               actionButton("solve_rkf45", "Resolver con RK45 Fehlberg", icon = icon("chart-line"), class = "btn-secundary", width = '215px'),
-               actionButton("solve_comparar", "Comparar Métodos", icon = icon("balance-scale"), class = "btn-info", width = '215px')
+  # Primera pestaña: Inicio
+  tabPanel("Inicio",
+           fluidPage(
+             # Encabezado principal con estilo
+             div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
+                 h2("📊 Simulación de Modelos SIR - Caso de estudio: SARS-COV2", style = "color: #2c3e50; font-weight: bold;")
              ),
              
-             mainPanel(
-               plotOutput("plot_result_simulador", height = "600px")
+             # Contenido principal
+             div(style = "margin: 0 auto; max-width: 900px;",
+                 # Primera sección: Descripción de la aplicación
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Qué es esta aplicación?", style = "color: #16a085; font-weight: bold;"),
+                     p("Esta herramienta interactiva permite modelar y simular el comportamiento de epidemias utilizando el modelo SIR.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("Incluye opciones para explorar modelos deterministas y estocásticos, facilitando el entendimiento de cómo las variables afectan la propagación de una enfermedad.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("En este caso, la enfermedad más relevante para la época es sin duda el COVID'19. La enfermedad por coronavirus (sARS-COV2) es una enfermedad infecciosa causada por el virus SARS-CoV-2. 
+                       La mayoría de las personas infectadas por el virus experimentarán una enfermedad respiratoria de leve a moderada. Sin embargo, algunas enfermarán gravemente y requerirán atención médica (WHO).",
+                       style = "font-size: 16px; line-height: 1.6; font-style: italic; color: #7f8c8d;")
+                 ),
+                 
+                 # Segunda sección: Cómo empezar
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Cuáles fueron los parámetros?", style = "color: #e74c3c; font-weight: bold;"),
+                     tags$div(
+                       p("Para el modelo determinista, utilizaremos las siguientes ecuaciones diferenciales:")
+                     ),
+                     withMathJax(
+                       tags$div(
+                         "$$\\frac{dS}{dt} = \\mu N - \\frac{\\beta I S}{N} - \\mu S \\quad \\text{(natalidad, infección, muerte)}$$",
+                         "$$\\frac{dI}{dt} = \\frac{\\beta I S}{N} - \\gamma I - \\mu I \\quad \\text{(infección, recuperación, muerte)}$$",
+                         "$$\\frac{dR}{dt} = \\gamma I - \\mu R \\quad \\text{(recuperación, muerte)}$$",
+                         p("La información para los parámetros mu y gamma se obtuvieron a partir de una simulación que también utilizaba el modelo SIR, en un estudio realizado por estudiantes de la Universidad de Sevilla.", style = "font-size: 16px; color: #34495e; line-height: 1.8;")
+                       )
+                     ),
+                     tags$div(
+                       p("Por otro lado, para el modelo estocástico, se utilizaron variables aleatorias para generar la simulación. Para que la simulación sea más acertada decidimos involucrar otras variables que modifiquen el comportamiento de la simulación conforme avanzan los días."),
+                       tags$ul(
+                         tags$li("Tasa de infección generada por una variable aleatoria."),
+                         tags$li("Probabilidad de que los infectados usen cubrebocas."),
+                         tags$li("Probabilidad de recuperación."),
+                         tags$li("Probabilidad de que la población esté vacunada.")
+                       ),
+                       p("Las condiciones iniciales para cada uno de los modelos serán una población que se puede seleccionar, y un individuo que esté infectado con el virus. Ambas simulaciones avanzarán al paso de un día, donde el tiempo máximo será de un año o 365 días.")
+                     )
+                 ),
+                 
+                 # Tercera sección: Beneficios
+                 div(style = "margin-bottom: 10px; padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);",
+                     h3("¿Qué puedes hacer aquí?", style = "color: #3498db; font-weight: bold;"),
+                     tags$ul(
+                       tags$li("Generar gráficos interactivos para analizar la propagación de enfermedades."),
+                       tags$li("Comparar modelos deterministas y estocásticos."),
+                       tags$li("Descargar resultados en formato CSV para análisis adicionales."),
+                       tags$li("Comparar el resultado de los errores de ambos modelos.")
+                     )
+                 )
+             ),
+             
+             # Pie de página con un estilo moderno
+             div(style = "text-align: center; margin-top: 10px; padding: 10px; background-color: #e9ecef; border-top: 2px solid #dcdcdc;",
+                 p("Desarrollado con ❤️ por PURO PADRE | 2024 | A01706832 | A01707339 | A01701234", style = "font-size: 14px; color: #7f8c8d;")
              )
            )
   ),
   
-  tabPanel("Opciones avanzadas",
+  # Segunda pestaña: Modelaje
+  tabPanel("Modelaje",
            sidebarLayout(
              sidebarPanel(
-               h3("Parámetros de Entrada"),
-               sliderInput("h", "Paso de tiempo (h):", 0.1, min = 0.01, max = 1, step = 0.01),
-               sliderInput("n", "Número de pasos (n):", 1, min = 1, max = 200),
-               sliderInput("X0", "Cantidad inicial de cafeína (mg):", 90, min = 1, max = 200),
-               sliderInput("a", "Consumo adicional (mg/h):", 1, min = 1, max = 200),
-               actionButton("solve_euler2", "Resolver con Euler", icon = icon("chart-line"), class = "btn-primary", width = '215px'),
-               actionButton("solve_rk42", "Resolver con RK4", icon = icon("chart-line"), class = "btn-danger", width = '215px'),
-               actionButton("solve_rk452", "Resolver con RK45", icon = icon("chart-line"), class = "btn-success", width = '215px'),
-               actionButton("solve_rkf452", "Resolver con RK45 Fehlberg", icon = icon("chart-line"), class = "btn-secundary", width = '215px'),
-               actionButton("solve_comparar2", "Comparar Métodos", icon = icon("balance-scale"), class = "btn-info", width = '215px')
+               h4("Selecciona el Modelo"),
+               radioButtons("model_type", "Selecciona el Modelo:",
+                            choices = list("Determinista" = "determinista", 
+                                           "Estocástico" = "estocastico", 
+                                           "Ambos" = "ambos"),
+                            selected = "determinista"),
+               
+               # Parámetros visibles solo para los modelos individuales
+               conditionalPanel(
+                 condition = "input.model_type == 'determinista'",
+                 h4("Parámetros para el Modelo Determinista"),
+                 numericInput("mu_d", "Tasa de natalidad/mortalidad (mu)", value = 0.05, min = 0, max = 1, step = 0.01),
+                 numericInput("beta_d", "Tasa de transmisión (beta)", value = 0.5, min = 0, max = 2, step = 0.01),
+                 numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.1, min = 0, max = 1, step = 0.01),
+                 numericInput("N_d", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
+               ),
+               
+               conditionalPanel(
+                 condition = "input.model_type == 'estocastico'",
+                 h4("Parámetros para el Modelo Estocástico"),
+                 numericInput("pC_s", "Probabilidad de usar cubrebocas (pC)", value = 0.5, min = 0, max = 1, step = 0.01),
+                 numericInput("N_s", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
+               ),
+               
+               actionButton("simular", "Simular")
              ),
              
              mainPanel(
-               plotOutput("plot_result_avanzadas", height = "600px")
+               tabsetPanel(
+                 id = "model_tabs",
+                 tabPanel("Modelo SIR", plotOutput("sirPlot")),
+                 tabPanel("Descarga", 
+                          fluidRow(
+                            column(6,
+                                   h4("Modelo Determinista"),
+                                   conditionalPanel(
+                                     condition = "input.model_type == 'determinista' || input.model_type == 'ambos'",
+                                     downloadButton("downloadDetTable", "Descargar Determinista"),
+                                     tableOutput("resultsTableDet")
+                                   )
+                            ),
+                            column(6,
+                                   h4("Modelo Estocástico"),
+                                   conditionalPanel(
+                                     condition = "input.model_type == 'estocastico' || input.model_type == 'ambos'",
+                                     downloadButton("downloadStoTable", "Descargar Estocástico"),
+                                     tableOutput("resultsTableSto")
+                                   )
+                            )
+                          )
+                 ),
+                 tabPanel("Resultados",
+                          verbatimTextOutput("mseOutput"),
+                          fileInput("real_data_file", "Sube el archivo CSV con datos reales:",
+                                    accept = c(".csv")),
+                          plotOutput("errorComparisonPlot") # Nueva gráfica de comparación de errores
+                 )
+               )
              )
            )
   )
 )
+
+# SERVER
 server <- function(input, output) {
-  observeEvent(input$solve_euler, {
-    h <- as.numeric(input$h)
-    n <- as.numeric(input$n)
-    Xg0 <- input$a
-    Xb0 <- 0 
-    k <- 0.02
-    a <- 0.03
-    
-    res <- metodo_euler_farmaco(0, Xg0, Xb0, h, n, a, k)
-    
-    output$plot_result_simulador <- renderPlot({
-      ggplot(res, aes(x = time)) +
-        geom_line(aes(y = Xg, color = "Xg"), size = 1.2) +
-        geom_point(aes(y = Xg, color = "Xg"), size = 2) +
-        geom_line(aes(y = Xb, color = "Xb"), size = 1.2) +
-        geom_point(aes(y = Xb, color = "Xb"), size = 2) +
-        labs(title = "Método de Euler", x = "Tiempo (hr)", y = "Concentración (mg)") +
-        theme_minimal(base_size = 15) +
-        scale_color_manual(values = c("Xg" = "blue", "Xb" = "red")) +
-        guides(color = guide_legend(title = "Componente"))
-    })
+  results_deterministic <- reactiveVal(NULL)
+  results_stochastic <- reactiveVal(NULL)
+  mse_value <- reactiveVal(NULL)
+  #
+  #
+  #
+  # Reactive to read the uploaded CSV
+  real_data <- reactive({
+    req(input$real_data_file)
+    read.csv(input$real_data_file$datapath) %>%
+      mutate(fecha = as.Date(fecha, format = "%Y-%m-%d"))
   })
   
-  observeEvent(input$solve_rk4, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- 90
-    a <- 0
+  observeEvent(input$simular, {
+    mu <- input$mu_d
+    beta <- input$beta_d
+    gamma <- input$gamma_d
+    N <- input$N_d
+    S0 <- N - 1
+    I0 <- 1
+    R0 <- 0
+    max_time <- 365
     
-    res <- runge_kutta4(t0, X0, h, n, a)
-    print(length(res$X))
+    # Modelo Determinista
+    sir_model <- function(t, state, parameters) {
+      with(as.list(c(state, parameters)), {
+        dS <- mu * N - (beta * I * S / N) - mu * S
+        dI <- (beta * I * S / N) - gamma * I - mu * I
+        dR <- gamma * I - mu * R
+        return(list(c(dS, dI, dR)))
+      })
+    }
     
-    output$plot_result_simulador <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "red", size = 1.2) +
-        geom_point(color = "red", size = 2) +
-        labs(title = "Método de RK4", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
+    parameters <- c(mu = mu, beta = beta, gamma = gamma)
+    state <- c(S = S0, I = I0, R = R0)
+    time <- seq(0, max_time, by = 1)
+    
+    sir_deterministic <- as.data.frame(ode(y = state, times = time, func = sir_model, parms = parameters))
+    results_deterministic(sir_deterministic)
+    
+    if (input$model_type == "ambos" || input$model_type == "estocastico") {
+      S <- rep(0, max_time + 1)
+      I <- rep(0, max_time + 1)
+      R <- rep(0, max_time + 1)
+      
+      S[1] <- S0
+      I[1] <- I0
+      R[1] <- R0
+      
+      for (t in 2:(max_time + 1)) {
+        new_infected <- rbinom(1, S[t - 1], beta * I[t - 1] / N)
+        new_recovered <- rbinom(1, I[t - 1], gamma)
+        
+        S[t] <- S[t - 1] - new_infected
+        I[t] <- I[t - 1] + new_infected - new_recovered
+        R[t] <- R[t - 1] + new_recovered
+      }
+      
+      results_stochastic(data.frame(time = time, S = S, I = I, R = R))
+      
+      if (input$model_type == "ambos") {
+        mse <- mean((sir_deterministic$I - I)^2)
+        mse_value(mse)
+      }
+    }
   })
-  observeEvent(input$solve_rk45, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    y0 <- 90
-    a <- 0
-    
-    res <- rk45(t0, y0, h, n, a)
-    print(length(res$X))
-    
-    output$plot_result_simulador <- renderPlot({
-      ggplot(res, aes(x = Tiempo, y = Cafeina)) +
-        geom_line(color = "green", size = 1.2) +
-        geom_point(color = "green", size = 2) +
-        labs(title = "Método de RK45", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
+  
+  # Gráfico principal
+  output$sirPlot <- renderPlot({
+    if (input$model_type == "ambos" && !is.null(results_deterministic()) && !is.null(results_stochastic())) {
+      df_det <- results_deterministic() %>% mutate(model = "Determinista")
+      df_sto <- results_stochastic() %>% mutate(model = "Estocástico")
+      
+      combined_data <- bind_rows(
+        df_det %>% select(time, S, I, R, model),
+        df_sto %>% select(time, S, I, R, model)
+      )
+      
+      ggplot(combined_data, aes(x = time)) +
+        geom_line(aes(y = S, color = interaction(model, "Susceptibles"))) +
+        geom_line(aes(y = I, color = interaction(model, "Infectados"))) +
+        geom_line(aes(y = R, color = interaction(model, "Recuperados"))) +
+        labs(title = "Comparación de Modelos Determinista y Estocástico", 
+             x = "Tiempo", y = "Población") +
+        scale_color_manual(values = c(
+          "Determinista.Susceptibles" = "blue",
+          "Determinista.Infectados" = "red",
+          "Determinista.Recuperados" = "green",
+          "Estocástico.Susceptibles" = "darkblue",
+          "Estocástico.Infectados" = "darkred",
+          "Estocástico.Recuperados" = "darkgreen"
+        )) +
+        theme_minimal()
+    } else if (input$model_type == "determinista" && !is.null(results_deterministic())) {
+      df <- results_deterministic()
+      ggplot(df, aes(x = time)) +
+        geom_line(aes(y = S, color = "Susceptibles")) +
+        geom_line(aes(y = I, color = "Infectados")) +
+        geom_line(aes(y = R, color = "Recuperados")) +
+        labs(title = "Modelo Determinista SIR", x = "Tiempo", y = "Población") +
+        scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+        theme_minimal()
+    } else if (input$model_type == "estocastico" && !is.null(results_stochastic())) {
+      df <- results_stochastic()
+      ggplot(df, aes(x = time)) +
+        geom_line(aes(y = S, color = "Susceptibles")) +
+        geom_line(aes(y = I, color = "Infectados")) +
+        geom_line(aes(y = R, color = "Recuperados")) +
+        labs(title = "Modelo Estocástico SIR", x = "Día", y = "Población") +
+        scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
+        theme_minimal()
+    }
+  })
+  
+  # Nueva gráfica de comparación de errores
+  # Nueva gráfica de comparación de errores con cálculo del área bajo la curva (AUC)
+  output$errorComparisonPlot <- renderPlot({
+    if (input$model_type == "ambos" &&
+        !is.null(results_deterministic()) &&
+        !is.null(results_stochastic()) &&
+        !is.null(real_data())) {
+      
+      real <- real_data()
+      df_det <- results_deterministic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
+      df_sto <- results_stochastic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
+      
+      # Comparación de errores absolutos
+      comparison <- real %>%
+        left_join(df_det, by = "fecha") %>%
+        left_join(df_sto, by = "fecha", suffix = c("_det", "_sto")) %>%
+        mutate(
+          error_det = abs(casos - I_det),
+          error_sto = abs(casos - I_sto)
+        )
+      
+      # Calcular AUC para cada modelo
+      auc_det <- sum(diff(comparison$fecha) * (head(comparison$error_det, -1) + tail(comparison$error_det, -1)) / 2, na.rm = TRUE)
+      auc_sto <- sum(diff(comparison$fecha) * (head(comparison$error_sto, -1) + tail(comparison$error_sto, -1)) / 2, na.rm = TRUE)
+      
+      # Pivotar datos para graficar
+      comparison_long <- comparison %>%
+        pivot_longer(cols = c(error_det, error_sto), names_to = "modelo", values_to = "error")
+      
+      # Graficar comparación de errores
+      ggplot(comparison_long, aes(x = fecha, y = error, color = modelo)) +
+        geom_line() +
+        labs(
+          title = paste(
+            "Comparación de Errores Absolutos\n",
+            sprintf("AUC Determinista: %.2f", auc_det),
+            sprintf(" | AUC Estocástico: %.2f", auc_sto)
+          ),
+          x = "Fecha",
+          y = "Error Absoluto"
+        ) +
+        scale_color_manual(values = c("error_det" = "red", "error_sto" = "blue")) +
+        theme_minimal()
+    }
   })
   
   
-  observeEvent(input$solve_rkf45, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- 90
-    a <- 0
-    
-    res <- rkf45(t0, X0, h, n, a)
-    print(length(res$X))
-    
-    output$plot_result_simulador <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "purple", size = 1.2) +
-        geom_point(color = "purple", size = 2) +
-        labs(title = "Método de RK45 Fehlberg", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
+  
+  # Mostrar el MSE
+  output$mseOutput <- renderText({
+    if (!is.null(mse_value())) {
+      paste("El error cuadrado (MSE) entre el modelo determinista y estocástico es:", round(mse_value(), 4))
+    } else {
+      "Seleccione 'Ambos' para calcular el MSE."
+    }
   })
   
-  observeEvent(input$solve_comparar, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- 90
-    a <- 0
-    
-    
-    res_euler <- metodo_euler(t0, X0, h, n, a)
-    res_euler$Metodo <- "Euler"
-    
-    
-    res_rk4 <- runge_kutta4(t0, X0, h, n, a)
-    res_rk4$Metodo <- "RK4"
-    
-    
-    res_rk45 <- rk45(t0, X0, h, n, a)
-    res_rk45$Metodo <- "RK45"
-    
-    
-    res_rkf45 <- rkf45(t0, X0, h, n, a)
-    res_rkf45$Metodo <- "RK45 Fehlberg"
-    
-    res_combined <- rbind(
-      data.frame(t = res_euler$t, X = res_euler$X, Metodo = res_euler$Metodo),
-      data.frame(t = res_rk4$t, X = res_rk4$X, Metodo = res_rk4$Metodo),
-      data.frame(t = res_rk45$Tiempo, X = res_rk45$Cafeina, Metodo = res_rk45$Metodo),
-      data.frame(t = res_rkf45$t[1:length(res_rk45$t)], X = res_rkf45$X[1:length(res_rk45$t)], Metodo = res_rkf45$Metodo)
-    )
-    
-    output$plot_result_simulador <- renderPlot({
-      ggplot(res_combined, aes(x = t, y = X, color = Metodo)) +
-        geom_line(size = 1.2) +
-        labs(title = "Comparación de Métodos Numéricos", x = "Tiempo (hr)", y = "Cafeína (mg)", color = "Método") +
-        theme_minimal(base_size = 15) +
-        scale_color_manual(values = c("Euler" = "blue", "RK4" = "red", "RK45" = "green", "RK45 Fehlberg" = "purple"))
-    })
+  # Tablas y descargas
+  output$resultsTableDet <- renderTable({
+    results_deterministic()
+  })
+  output$resultsTableSto <- renderTable({
+    results_stochastic()
   })
   
-  # Opciones avanzadas - Euler
-  observeEvent(input$solve_euler2, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- input$X0
-    a = input$a
-    
-    res <- metodo_euler(t0, X0, h, n, a)
-    
-    output$plot_result_avanzadas <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "blue", size = 1.2) +
-        geom_point(color = "blue", size = 2) +
-        labs(title = "Método de Euler", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
-  })
+  output$downloadDetTable <- downloadHandler(
+    filename = "Resultados_Determinista.csv",
+    content = function(file) {
+      write.csv(results_deterministic(), file, row.names = FALSE)
+    }
+  )
   
-  # Opciones avanzadas - RK4
-  observeEvent(input$solve_rk42, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- input$X0 
-    a <- input$a
-    
-    res <- runge_kutta4(t0, X0, h, n, a)
-    
-    output$plot_result_avanzadas <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "red", size = 1.2) +
-        geom_point(color = "red", size = 2) +
-        labs(title = "Método de RK4", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
-  })
-  
-  # Opciones avanzadas - RK45
-  observeEvent(input$solve_rk452, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    y0 <- input$X0 
-    a <- input$a
-    
-    res <- rk45(t0, y0, h, n, a)
-    
-    output$plot_result_avanzadas <- renderPlot({
-      ggplot(res, aes(x = Tiempo, y = Cafeina)) +
-        geom_line(color = "green", size = 1.2) +
-        geom_point(color = "green", size = 2) +
-        labs(title = "Método de RK45", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
-  })
-  observeEvent(input$solve_rkf452, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- input$X0 
-    a <- input$a
-    res <- rkf45(t0, X0, h, n, a)
-    
-    output$plot_result_avanzadas <- renderPlot({
-      ggplot(res, aes(x = t, y = X)) +
-        geom_line(color = "purple", size = 1.2) +
-        geom_point(color = "purple", size = 2) +
-        labs(title = "Método de RK45 Fehlberg", x = "Tiempo (hr)", y = "Cafeína (mg)") +
-        theme_minimal(base_size = 15)
-    })
-  })
-  
-  # Comparar los tres métodos - Opciones avanzadas
-  observeEvent(input$solve_comparar2, {
-    h <- input$h
-    n <- input$n
-    t0 <- 0
-    X0 <- input$X0 
-    a = input$a
-    res_euler <- metodo_euler(t0, X0, h, n, a)
-    res_euler$Metodo <- "Euler"
-    
-    
-    res_rk4 <- runge_kutta4(t0, X0, h, n, a)
-    res_rk4$Metodo <- "RK4"
-    
-    
-    res_rk45 <- rk45(t0, X0, h, n, a)
-    res_rk45$Metodo <- "RK45"
-    
-    
-    res_rkf45 <- rkf45(t0, X0, h, n, a)
-    res_rkf45$Metodo <- "RK45 Fehlberg"
-    
-    res_combined <- rbind(
-      data.frame(t = res_euler$t, X = res_euler$X, Metodo = res_euler$Metodo),
-      data.frame(t = res_rk4$t, X = res_rk4$X, Metodo = res_rk4$Metodo),
-      data.frame(t = res_rk45$Tiempo, X = res_rk45$Cafeina, Metodo = res_rk45$Metodo),
-      data.frame(t = res_rkf45$t, X = res_rkf45$X, Metodo = res_rkf45$Metodo)
-    )
-    
-    output$plot_result_avanzadas <- renderPlot({
-      ggplot(res_combined, aes(x = t, y = X, color = Metodo)) +
-        geom_line(size = 1.2) +
-        labs(title = "Comparación de Métodos Numéricos", x = "Tiempo (hr)", y = "Cafeína (mg)", color = "Método") +
-        theme_minimal(base_size = 15) +
-        scale_color_manual(values = c("Euler" = "blue", "RK4" = "red", "RK45" = "green", "RK45 Fehlberg" = "grey"))
-    })
-  })
+  output$downloadStoTable <- downloadHandler(
+    filename = "Resultados_Estocastico.csv",
+    content = function(file) {
+      write.csv(results_stochastic(), file, row.names = FALSE)
+    }
+  )
 }
+
 
 shinyApp(ui = ui, server = server)

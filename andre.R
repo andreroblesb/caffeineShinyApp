@@ -2,20 +2,79 @@ library(shiny)
 library(deSolve)
 library(ggplot2)
 library(bslib)
+library(gridExtra)
 library(dplyr)
+library(tidyr)
 
 # INTERFAZ
 ui <- navbarPage(
   theme = bs_theme(version = 4, bootswatch = "flatly"),
-  title = "Simulación de Modelos SIR",
+  title = "SARS-COV2 visto desde SIR",
   
   # Primera pestaña: Inicio
   tabPanel("Inicio",
            fluidPage(
-             h3("Bienvenido a la Simulación de Modelos SIR"),
-             p("Esta aplicación permite simular modelos SIR (Susceptibles, Infectados, Recuperados) 
-                usando enfoques deterministas y estocásticos."),
-             p("Navegue por las pestañas para explorar los modelos o realizar análisis comparativos.")
+             # Encabezado principal con estilo
+             div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
+                 h2("📊 Simulación de Modelos SIR - Caso de estudio: SARS-COV2", style = "color: #2c3e50; font-weight: bold;")
+             ),
+             
+             # Contenido principal
+             div(style = "margin: 0 auto; max-width: 900px;",
+                 # Primera sección: Descripción de la aplicación
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Qué es esta aplicación?", style = "color: #16a085; font-weight: bold;"),
+                     p("Esta herramienta interactiva permite modelar y simular el comportamiento de epidemias utilizando el modelo SIR.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("Incluye opciones para explorar modelos deterministas y estocásticos, facilitando el entendimiento de cómo las variables afectan la propagación de una enfermedad.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("En este caso, la enfermedad más relevante para la época es sin duda el COVID'19. La enfermedad por coronavirus (sARS-COV2) es una enfermedad infecciosa causada por el virus SARS-CoV-2. 
+                       La mayoría de las personas infectadas por el virus experimentarán una enfermedad respiratoria de leve a moderada. Sin embargo, algunas enfermarán gravemente y requerirán atención médica (WHO).",
+                       style = "font-size: 16px; line-height: 1.6; font-style: italic; color: #7f8c8d;")
+                 ),
+                 
+                 # Segunda sección: Cómo empezar
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Cuáles fueron los parámetros?", style = "color: #e74c3c; font-weight: bold;"),
+                     tags$div(
+                       p("Para el modelo determinista, utilizaremos las siguientes ecuaciones diferenciales:")
+                     ),
+                     withMathJax(
+                       tags$div(
+                         "$$\\frac{dS}{dt} = \\mu N - \\frac{\\beta I S}{N} - \\mu S \\quad \\text{(natalidad, infección, muerte)}$$",
+                         "$$\\frac{dI}{dt} = \\frac{\\beta I S}{N} - \\gamma I - \\mu I \\quad \\text{(infección, recuperación, muerte)}$$",
+                         "$$\\frac{dR}{dt} = \\gamma I - \\mu R \\quad \\text{(recuperación, muerte)}$$",
+                         p("La información para los parámetros mu y gamma se obtuvieron a partir de una simulación que también utilizaba el modelo SIR, en un estudio realizado por estudiantes de la Universidad de Sevilla.", style = "font-size: 16px; color: #34495e; line-height: 1.8;")
+                       )
+                     ),
+                     tags$div(
+                       p("Por otro lado, para el modelo estocástico, se utilizaron variables aleatorias para generar la simulación. Para que la simulación sea más acertada decidimos involucrar otras variables que modifiquen el comportamiento de la simulación conforme avanzan los días."),
+                       tags$ul(
+                         tags$li("Tasa de infección generada por una variable aleatoria."),
+                         tags$li("Probabilidad de que los infectados usen cubrebocas."),
+                         tags$li("Probabilidad de recuperación."),
+                         tags$li("Probabilidad de que la población esté vacunada.")
+                       ),
+                       p("Las condiciones iniciales para cada uno de los modelos serán una población que se puede seleccionar, y un individuo que esté infectado con el virus. Ambas simulaciones avanzarán al paso de un día, donde el tiempo máximo será de un año o 365 días.")
+                     )
+                 ),
+                 
+                 # Tercera sección: Beneficios
+                 div(style = "margin-bottom: 10px; padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);",
+                     h3("¿Qué puedes hacer aquí?", style = "color: #3498db; font-weight: bold;"),
+                     tags$ul(
+                       tags$li("Generar gráficos interactivos para analizar la propagación de enfermedades."),
+                       tags$li("Comparar modelos deterministas y estocásticos."),
+                       tags$li("Descargar resultados en formato CSV para análisis adicionales."),
+                       tags$li("Comparar el resultado de los errores de ambos modelos.")
+                     )
+                 )
+             ),
+             
+             # Pie de página con un estilo moderno
+             div(style = "text-align: center; margin-top: 10px; padding: 10px; background-color: #e9ecef; border-top: 2px solid #dcdcdc;",
+                 p("Desarrollado con ❤️ por PURO PADRE | 2024 | A01706832 | A01707339 | A01701234", style = "font-size: 14px; color: #7f8c8d;")
+             )
            )
   ),
   
@@ -30,14 +89,26 @@ ui <- navbarPage(
                                            "Ambos" = "ambos"),
                             selected = "determinista"),
                
-               # Parámetros para los modelos
-               numericInput("mu_d", "Tasa de natalidad/mortalidad (mu)", value = 0.05, min = 0, max = 1, step = 0.01),
-               numericInput("beta_d", "Tasa de transmisión (beta)", value = 0.5, min = 0, max = 2, step = 0.01),
-               numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.1, min = 0, max = 1, step = 0.01),
-               numericInput("N_d", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1),
+               # Parámetros visibles solo para los modelos individuales
+               conditionalPanel(
+                 condition = "input.model_type == 'determinista'",
+                 h4("Parámetros para el Modelo Determinista"),
+                 numericInput("mu_d", "Tasa de natalidad/mortalidad (mu)", value = 0.05, min = 0, max = 1, step = 0.01),
+                 numericInput("beta_d", "Tasa de transmisión (beta)", value = 0.5, min = 0, max = 2, step = 0.01),
+                 numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.1, min = 0, max = 1, step = 0.01),
+                 numericInput("N_d", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
+               ),
+               
+               conditionalPanel(
+                 condition = "input.model_type == 'estocastico'",
+                 h4("Parámetros para el Modelo Estocástico"),
+                 numericInput("pC_s", "Probabilidad de usar cubrebocas (pC)", value = 0.5, min = 0, max = 1, step = 0.01),
+                 numericInput("N_s", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
+               ),
                
                actionButton("simular", "Simular")
              ),
+             
              mainPanel(
                tabsetPanel(
                  id = "model_tabs",
@@ -62,8 +133,7 @@ ui <- navbarPage(
                             )
                           )
                  ),
-                 tabPanel("Resultados", 
-                          h4("Mean Squared Error (MSE)"),
+                 tabPanel("Resultados",
                           verbatimTextOutput("mseOutput"),
                           fileInput("real_data_file", "Sube el archivo CSV con datos reales:",
                                     accept = c(".csv")),
@@ -74,7 +144,6 @@ ui <- navbarPage(
            )
   )
 )
-
 
 # SERVER
 server <- function(input, output) {
@@ -193,6 +262,7 @@ server <- function(input, output) {
   })
   
   # Nueva gráfica de comparación de errores
+  # Nueva gráfica de comparación de errores con cálculo del área bajo la curva (AUC)
   output$errorComparisonPlot <- renderPlot({
     if (input$model_type == "ambos" &&
         !is.null(results_deterministic()) &&
@@ -203,22 +273,40 @@ server <- function(input, output) {
       df_det <- results_deterministic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
       df_sto <- results_stochastic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
       
+      # Comparación de errores absolutos
       comparison <- real %>%
         left_join(df_det, by = "fecha") %>%
         left_join(df_sto, by = "fecha", suffix = c("_det", "_sto")) %>%
         mutate(
           error_det = abs(casos - I_det),
           error_sto = abs(casos - I_sto)
-        ) %>%
+        )
+      
+      # Calcular AUC para cada modelo
+      auc_det <- sum(diff(comparison$fecha) * (head(comparison$error_det, -1) + tail(comparison$error_det, -1)) / 2, na.rm = TRUE)
+      auc_sto <- sum(diff(comparison$fecha) * (head(comparison$error_sto, -1) + tail(comparison$error_sto, -1)) / 2, na.rm = TRUE)
+      
+      # Pivotar datos para graficar
+      comparison_long <- comparison %>%
         pivot_longer(cols = c(error_det, error_sto), names_to = "modelo", values_to = "error")
       
-      ggplot(comparison, aes(x = fecha, y = error, color = modelo)) +
+      # Graficar comparación de errores
+      ggplot(comparison_long, aes(x = fecha, y = error, color = modelo)) +
         geom_line() +
-        labs(title = "Comparación de Errores Absolutos", x = "Fecha", y = "Error Absoluto") +
+        labs(
+          title = paste(
+            "Comparación de Errores Absolutos\n",
+            sprintf("AUC Determinista: %.2f", auc_det),
+            sprintf(" | AUC Estocástico: %.2f", auc_sto)
+          ),
+          x = "Fecha",
+          y = "Error Absoluto"
+        ) +
         scale_color_manual(values = c("error_det" = "red", "error_sto" = "blue")) +
         theme_minimal()
     }
   })
+  
   
   
   # Mostrar el MSE

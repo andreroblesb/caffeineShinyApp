@@ -6,17 +6,58 @@ library(gridExtra)
 library(dplyr)
 library(tidyr)
 
+Sys.setenv(OPENAI_API_KEY = "")
+
+# Función para interactuar con ChatGPT
+getChatGPTResponse <- function(question) {
+  api_key <- Sys.getenv("OPENAI_API_KEY")  # Obtén la API key de las variables de entorno
+  if (api_key == "") {
+    return("Error: No se ha configurado la API key de OpenAI.")
+  }
+  
+  url <- "https://api.openai.com/v1/chat/completions"
+  headers <- c(
+    `Authorization` = paste("Bearer", api_key),
+    `Content-Type` = "application/json"
+  )
+  
+  # Configura el mensaje para ChatGPT
+  body <- list(
+    model = "gpt-4o",
+    messages = list(
+      list(role = "system", content = "Eres un asistente experto en análisis de modelos SIR de la forma canónico y estocástica."),
+      list(role = "user", content = question)
+    )
+  )
+  
+  # Llama a la API
+  response <- httr::POST(
+    url,
+    httr::add_headers(.headers = headers),
+    body = jsonlite::toJSON(body, auto_unbox = TRUE)
+  )
+  
+  # Procesa la respuesta
+  if (response$status_code == 200) {
+    parsed <- httr::content(response, as = "parsed", simplifyVector = TRUE)
+    return(parsed$choices[[1]]$message$content)
+  } else {
+    return(paste("Error al llamar a la API:", response$status_code))
+  }
+}
+
+
 # INTERFAZ
 ui <- navbarPage(
   theme = bs_theme(version = 4, bootswatch = "flatly"),
-  title = "Simulación de Modelos SIR",
+  title = "SARS-COV2 visto desde SIR",
   
   # Primera pestaña: Inicio
   tabPanel("Inicio",
            fluidPage(
              # Encabezado principal con estilo
              div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
-                 h2("📊 Simulación de Modelos SIR", style = "color: #2c3e50; font-weight: bold;")
+                 h2("📊 Simulación de Modelos SIR - Caso de estudio: SARS-COV2", style = "color: #2c3e50; font-weight: bold;")
              ),
              
              # Contenido principal
@@ -27,12 +68,15 @@ ui <- navbarPage(
                      p("Esta herramienta interactiva permite modelar y simular el comportamiento de epidemias utilizando el modelo SIR.", 
                        style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
                      p("Incluye opciones para explorar modelos deterministas y estocásticos, facilitando el entendimiento de cómo las variables afectan la propagación de una enfermedad.", 
-                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;")
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("En este caso, la enfermedad más relevante para la época es sin duda el COVID'19. La enfermedad por coronavirus (sARS-COV2) es una enfermedad infecciosa causada por el virus SARS-CoV-2. 
+                       La mayoría de las personas infectadas por el virus experimentarán una enfermedad respiratoria de leve a moderada. Sin embargo, algunas enfermarán gravemente y requerirán atención médica (WHO).",
+                       style = "font-size: 16px; line-height: 1.6; font-style: italic; color: #7f8c8d;")
                  ),
                  
                  # Segunda sección: Cómo empezar
                  div(style = "margin-bottom: 10px;",
-                     h3("¿Cuáles fueron los parametros?", style = "color: #e74c3c; font-weight: bold;"),
+                     h3("¿Cuáles fueron los parámetros?", style = "color: #e74c3c; font-weight: bold;"),
                      tags$div(
                        p("Para el modelo determinista, utilizaremos las siguientes ecuaciones diferenciales:")
                      ),
@@ -41,18 +85,18 @@ ui <- navbarPage(
                          "$$\\frac{dS}{dt} = \\mu N - \\frac{\\beta I S}{N} - \\mu S \\quad \\text{(natalidad, infección, muerte)}$$",
                          "$$\\frac{dI}{dt} = \\frac{\\beta I S}{N} - \\gamma I - \\mu I \\quad \\text{(infección, recuperación, muerte)}$$",
                          "$$\\frac{dR}{dt} = \\gamma I - \\mu R \\quad \\text{(recuperación, muerte)}$$",
-                         p("La información para los parametros mu y gamma se obtuvieron a partir de una simulación que también utilizaba el modelo SIR, en un estudio realizado por estudiantes de la Universidad de Sevilla.", style = "font-size: 16px; color: #34495e; line-height: 1.8;")
+                         p("La información para los parámetros mu y gamma se obtuvieron a partir de una simulación que también utilizaba el modelo SIR, en un estudio realizado por estudiantes de la Universidad de Sevilla.", style = "font-size: 16px; color: #34495e; line-height: 1.8;")
                        )
                      ),
                      tags$div(
-                       p("Por otro lado, para el modelo estocastico, se utilizaron variables aleatorias para generar la simulacion. Para que la simulacion sea mas acertada decidimos involucrar otras variables que modifiquen el comportamiento de la simulacion conforme avanzan los dias."),
+                       p("Por otro lado, para el modelo estocástico, se utilizaron variables aleatorias para generar la simulación. Para que la simulación sea más acertada decidimos involucrar otras variables que modifiquen el comportamiento de la simulación conforme avanzan los días."),
                        tags$ul(
-                         tags$li("Tasa de infeccion generada por una variable aleatoria."),
+                         tags$li("Tasa de infección generada por una variable aleatoria."),
                          tags$li("Probabilidad de que los infectados usen cubrebocas."),
-                         tags$li("Probabilidad de recuperacion."),
-                         tags$li("Probabilidad de que la poblacion este vacunada.")
+                         tags$li("Probabilidad de recuperación."),
+                         tags$li("Probabilidad de que la población esté vacunada.")
                        ),
-                       p("Las condiciones iniciales para cada uno de los modelos ceran una poblacion que se puede seleccionar, y un individuo que este infectado con el viruz. Ambas simulaciones avanzaran al paso de un dia, donde el tiempo maximo sera de un año o 365 días.")
+                       p("Las condiciones iniciales para cada uno de los modelos serán una población que se puede seleccionar, y un individuo que esté infectado con el virus. Ambas simulaciones avanzarán al paso de un día, donde el tiempo máximo será de un año o 365 días.")
                      )
                  ),
                  
@@ -70,7 +114,7 @@ ui <- navbarPage(
              
              # Pie de página con un estilo moderno
              div(style = "text-align: center; margin-top: 10px; padding: 10px; background-color: #e9ecef; border-top: 2px solid #dcdcdc;",
-                 p("Desarrollado con ❤️ por PURO PADRE | 2024", style = "font-size: 14px; color: #7f8c8d;")
+                 p("Desarrollado con ❤️ por PURO PADRE | 2024 | A01706832 | A01707339 | A01701234", style = "font-size: 14px; color: #7f8c8d;")
              )
            )
   ),
@@ -130,24 +174,56 @@ ui <- navbarPage(
                             )
                           )
                  ),
-                 tabPanel("Resultados", 
-                          h4("Mean Squared Error (MSE)"),
-                          verbatimTextOutput("mseOutput"),
-                          fileInput("real_data_file", "Sube el archivo CSV con datos reales:",
-                                    accept = c(".csv")),
-                          plotOutput("errorComparisonPlot") # Nueva gráfica de comparación de errores
+                 tabPanel("Resultados",
+                          fluidPage(
+                            # Primera fila: Mostrar el MSE
+                            fluidRow(
+                              column(12,
+                                     h4("Mean Squared Error (MSE)"),
+                                     verbatimTextOutput("mseOutput")
+                              )
+                            ),
+                            hr(),  # Línea horizontal para separación
+                            
+                            # Segunda fila: Mostrar la gráfica
+                            fluidRow(
+                              column(12,
+                                     h4("Comparación de Errores Absolutos"),
+                                     plotOutput("errorComparisonPlot", height = "400px")
+                              )
+                            ),
+                            hr(),  # Otra separación visual
+                            
+                            # Tercera fila: Opciones para ChatGPT
+                            fluidRow(
+                              column(12,
+                                     div(style = "display: flex; align-items: center; gap: 10px;",
+                                         selectInput("question", "Seleccione una pregunta:",
+                                                     choices = c(
+                                                       "¿Cuál de los modelos tiene menor error total?",
+                                                       "¿Cómo interpretar las diferencias en el área bajo la curva (AUC) entre los modelos?"
+                                                     )),
+                                         actionButton("askGPT", "Asistente AI")
+                                     ),
+                                     verbatimTextOutput("chatGPTResponse")
+                              )
+                            )
+                          )
                  )
                )
              )
            )
   )
 )
+
 # SERVER
 server <- function(input, output) {
   results_deterministic <- reactiveVal(NULL)
   results_stochastic <- reactiveVal(NULL)
   mse_value <- reactiveVal(NULL)
-  
+  #
+  #
+  #
   # Reactive to read the uploaded CSV
   real_data <- reactive({
     req(input$real_data_file)
@@ -156,78 +232,86 @@ server <- function(input, output) {
   })
   
   observeEvent(input$simular, {
-    if (input$model_type == "determinista" || input$model_type == "ambos") {
-      mu <- input$mu_d
-      beta <- input$beta_d
-      gamma <- input$gamma_d
-      N <- input$N_d
-      S0 <- N - 1
-      I0 <- 1
-      R0 <- 0
-      max_time <- 365
-      
-      sir_model <- function(t, state, parameters) {
-        with(as.list(c(state, parameters)), {
-          dS <- mu * N - (beta * I * S / N) - mu * S
-          dI <- (beta * I * S / N) - gamma * I - mu * I
-          dR <- gamma * I - mu * R
-          return(list(c(dS, dI, dR)))
-        })
-      }
-      
-      parameters <- c(mu = mu, beta = beta, gamma = gamma)
-      state <- c(S = S0, I = I0, R = R0)
-      time <- seq(0, max_time, by = 1)
-      
-      sir_deterministic <- ode(y = state, times = time, func = sir_model, parms = parameters)
-      results_deterministic(as.data.frame(sir_deterministic))
+    mu <- input$mu_d
+    beta <- input$beta_d
+    gamma <- input$gamma_d
+    N <- input$N_d
+    S0 <- N - 1
+    I0 <- 1
+    R0 <- 0
+    max_time <- 365
+    
+    # Modelo Determinista
+    sir_model <- function(t, state, parameters) {
+      with(as.list(c(state, parameters)), {
+        dS <- mu * N - (beta * I * S / N) - mu * S
+        dI <- (beta * I * S / N) - gamma * I - mu * I
+        dR <- gamma * I - mu * R
+        return(list(c(dS, dI, dR)))
+      })
     }
     
-    if (input$model_type == "estocastico" || input$model_type == "ambos") {
-      pR <- 0.01
-      pC <- input$pC_s
-      N <- input$N_s
-      t <- 1:365
-      S <- rep(0, 365)
-      I <- rep(0, 365)
-      R <- rep(0, 365)
+    parameters <- c(mu = mu, beta = beta, gamma = gamma)
+    state <- c(S = S0, I = I0, R = R0)
+    time <- seq(0, max_time, by = 1)
+    
+    sir_deterministic <- as.data.frame(ode(y = state, times = time, func = sir_model, parms = parameters))
+    results_deterministic(sir_deterministic)
+    
+    if (input$model_type == "ambos" || input$model_type == "estocastico") {
+      S <- rep(0, max_time + 1)
+      I <- rep(0, max_time + 1)
+      R <- rep(0, max_time + 1)
       
-      I[1] <- 1
-      R[1] <- 0
-      S[1] <- N - I[1] - R[1]
+      S[1] <- S0
+      I[1] <- I0
+      R[1] <- R0
       
-      for (day in 2:365) {
-        face_mask <- rbinom(1, I[day - 1], pC)
-        pI <- runif(1)
+      for (t in 2:(max_time + 1)) {
+        new_infected <- rbinom(1, S[t - 1], beta * I[t - 1] / N)
+        new_recovered <- rbinom(1, I[t - 1], gamma)
         
-        if (I[day - 1] > 0) {
-          effective_pI <- pI * (1 - face_mask / I[day - 1])
-        } else {
-          effective_pI <- 0
-        }
-        
-        new_infected <- rbinom(1, S[day - 1], effective_pI * I[day - 1] / N)
-        new_recovered <- rbinom(1, I[day - 1], pR)
-        
-        S[day] <- S[day - 1] - new_infected
-        I[day] <- I[day - 1] + new_infected - new_recovered
-        R[day] <- R[day - 1] + new_recovered
+        S[t] <- S[t - 1] - new_infected
+        I[t] <- I[t - 1] + new_infected - new_recovered
+        R[t] <- R[t - 1] + new_recovered
       }
       
-      results_stochastic(data.frame(Dia = t, S = S, I = I, R = R))
-    }
-    
-    if (input$model_type == "ambos") {
-      df_det <- results_deterministic()
-      df_sto <- results_stochastic()
-      mse <- mean((df_det$I - df_sto$I)^2)
-      mse_value(mse)
+      results_stochastic(data.frame(time = time, S = S, I = I, R = R))
+      
+      if (input$model_type == "ambos") {
+        mse <- mean((sir_deterministic$I - I)^2)
+        mse_value(mse)
+      }
     }
   })
   
   # Gráfico principal
   output$sirPlot <- renderPlot({
-    if (input$model_type == "determinista" && !is.null(results_deterministic())) {
+    if (input$model_type == "ambos" && !is.null(results_deterministic()) && !is.null(results_stochastic())) {
+      df_det <- results_deterministic() %>% mutate(model = "Determinista")
+      df_sto <- results_stochastic() %>% mutate(model = "Estocástico")
+      
+      combined_data <- bind_rows(
+        df_det %>% select(time, S, I, R, model),
+        df_sto %>% select(time, S, I, R, model)
+      )
+      
+      ggplot(combined_data, aes(x = time)) +
+        geom_line(aes(y = S, color = interaction(model, "Susceptibles"))) +
+        geom_line(aes(y = I, color = interaction(model, "Infectados"))) +
+        geom_line(aes(y = R, color = interaction(model, "Recuperados"))) +
+        labs(title = "Comparación de Modelos Determinista y Estocástico", 
+             x = "Tiempo", y = "Población") +
+        scale_color_manual(values = c(
+          "Determinista.Susceptibles" = "blue",
+          "Determinista.Infectados" = "red",
+          "Determinista.Recuperados" = "green",
+          "Estocástico.Susceptibles" = "darkblue",
+          "Estocástico.Infectados" = "darkred",
+          "Estocástico.Recuperados" = "darkgreen"
+        )) +
+        theme_minimal()
+    } else if (input$model_type == "determinista" && !is.null(results_deterministic())) {
       df <- results_deterministic()
       ggplot(df, aes(x = time)) +
         geom_line(aes(y = S, color = "Susceptibles")) +
@@ -238,57 +322,18 @@ server <- function(input, output) {
         theme_minimal()
     } else if (input$model_type == "estocastico" && !is.null(results_stochastic())) {
       df <- results_stochastic()
-      ggplot(df, aes(x = Dia)) +
+      ggplot(df, aes(x = time)) +
         geom_line(aes(y = S, color = "Susceptibles")) +
         geom_line(aes(y = I, color = "Infectados")) +
         geom_line(aes(y = R, color = "Recuperados")) +
         labs(title = "Modelo Estocástico SIR", x = "Día", y = "Población") +
         scale_color_manual(values = c("Susceptibles" = "blue", "Infectados" = "red", "Recuperados" = "green")) +
         theme_minimal()
-    } else if (input$model_type == "ambos" && !is.null(results_deterministic()) && !is.null(results_stochastic())) {
-      df_det <- results_deterministic()
-      df_det$model <- "Determinista"
-      df_sto <- results_stochastic()
-      df_sto$model <- "Estocástico"
-      
-      # Asegurarse de que los nombres de columnas sean consistentes
-      colnames(df_sto)[colnames(df_sto) == "Dia"] <- "time"
-      
-      combined_data <- rbind(
-        df_det %>% mutate(model = "Determinista"),
-        df_sto %>% mutate(model = "Estocástico")
-      )
-      
-      ggplot(combined_data, aes(x = time)) +
-        geom_line(aes(y = S, color = interaction(model, "Susceptibles")), size = 1) +
-        geom_line(aes(y = I, color = interaction(model, "Infectados")), size = 1) +
-        geom_line(aes(y = R, color = interaction(model, "Recuperados")), size = 1) +
-        labs(title = "Comparación de Modelos Determinista y Estocástico", 
-             x = "Tiempo", 
-             y = "Población") +
-        scale_color_manual(
-          values = c(
-            "Determinista.Susceptibles" = "blue",
-            "Determinista.Infectados" = "red",
-            "Determinista.Recuperados" = "green",
-            "Estocástico.Susceptibles" = "darkblue",
-            "Estocástico.Infectados" = "darkred",
-            "Estocástico.Recuperados" = "darkgreen"
-          ),
-          labels = c(
-            "Determinista.Susceptibles" = "Determinista - Susceptibles",
-            "Determinista.Infectados" = "Determinista - Infectados",
-            "Determinista.Recuperados" = "Determinista - Recuperados",
-            "Estocástico.Susceptibles" = "Estocástico - Susceptibles",
-            "Estocástico.Infectados" = "Estocástico - Infectados",
-            "Estocástico.Recuperados" = "Estocástico - Recuperados"
-          )
-        ) +
-        theme_minimal()
     }
   })
   
   # Nueva gráfica de comparación de errores
+  # Nueva gráfica de comparación de errores con cálculo del área bajo la curva (AUC)
   output$errorComparisonPlot <- renderPlot({
     if (input$model_type == "ambos" &&
         !is.null(results_deterministic()) &&
@@ -299,22 +344,41 @@ server <- function(input, output) {
       df_det <- results_deterministic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
       df_sto <- results_stochastic() %>% mutate(fecha = seq.Date(from = min(real$fecha), by = "day", length.out = n()))
       
+      # Comparación de errores absolutos
       comparison <- real %>%
         left_join(df_det, by = "fecha") %>%
         left_join(df_sto, by = "fecha", suffix = c("_det", "_sto")) %>%
         mutate(
           error_det = abs(casos - I_det),
           error_sto = abs(casos - I_sto)
-        ) %>%
+        )
+      
+      # Calcular AUC para cada modelo
+      auc_det <- sum(diff(comparison$fecha) * (head(comparison$error_det, -1) + tail(comparison$error_det, -1)) / 2, na.rm = TRUE)
+      auc_sto <- sum(diff(comparison$fecha) * (head(comparison$error_sto, -1) + tail(comparison$error_sto, -1)) / 2, na.rm = TRUE)
+      
+      # Pivotar datos para graficar
+      comparison_long <- comparison %>%
         pivot_longer(cols = c(error_det, error_sto), names_to = "modelo", values_to = "error")
       
-      ggplot(comparison, aes(x = fecha, y = error, color = modelo)) +
+      # Graficar comparación de errores
+      ggplot(comparison_long, aes(x = fecha, y = error, color = modelo)) +
         geom_line() +
-        labs(title = "Comparación de Errores Absolutos", x = "Fecha", y = "Error Absoluto") +
+        labs(
+          title = paste(
+            "Comparación de Errores Absolutos\n",
+            sprintf("AUC Determinista: %.2f", auc_det),
+            sprintf(" | AUC Estocástico: %.2f", auc_sto)
+          ),
+          x = "Fecha",
+          y = "Error Absoluto"
+        ) +
         scale_color_manual(values = c("error_det" = "red", "error_sto" = "blue")) +
         theme_minimal()
     }
   })
+  
+  
   
   # Mostrar el MSE
   output$mseOutput <- renderText({
@@ -325,11 +389,21 @@ server <- function(input, output) {
     }
   })
   
+  # Responder con ChatGPT
+  observeEvent(input$askGPT, {
+    question <- input$question
+    response <- getChatGPTResponse(question)
+    
+    output$chatGPTResponse <- renderText({
+      response
+    })
+  })
+  
+  
   # Tablas y descargas
   output$resultsTableDet <- renderTable({
     results_deterministic()
   })
-  
   output$resultsTableSto <- renderTable({
     results_stochastic()
   })
@@ -348,5 +422,6 @@ server <- function(input, output) {
     }
   )
 }
+
 
 shinyApp(ui = ui, server = server)
