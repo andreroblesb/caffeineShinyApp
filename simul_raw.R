@@ -9,19 +9,67 @@ ui <- navbarPage(
   theme = bs_theme(version = 4, bootswatch = "flatly"),
   title = "Simulación de Modelos SIR",
   
-  # Primera pestaña: Inicio
   tabPanel("Inicio",
            fluidPage(
-             h3("Bienvenido a la Simulación de Modelos SIR"),
-             p("Esta aplicación permite simular modelos SIR (Susceptibles, Infectados, Recuperados) 
-                usando enfoques deterministas y estocásticos."),
-             p("Para empezar:"),
-             tags$ul(
-               tags$li("Seleccione el tipo de modelo que desea simular."),
-               tags$li("Ingrese los parámetros específicos para el modelo seleccionado."),
-               tags$li("Presione el botón 'Simular' para visualizar los resultados.")
+             # Encabezado principal con estilo
+             div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
+                 h2("📊 Simulación de Modelos SIR", style = "color: #2c3e50; font-weight: bold;")
              ),
-             p("Navegue por las pestañas para explorar los modelos o descargar resultados.")
+             
+             # Contenido principal
+             div(style = "margin: 0 auto; max-width: 900px;",
+                 # Primera sección: Descripción de la aplicación
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Qué es esta aplicación?", style = "color: #16a085; font-weight: bold;"),
+                     p("Esta herramienta interactiva permite modelar y simular el comportamiento de epidemias utilizando el modelo SIR.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
+                     p("Incluye opciones para explorar modelos deterministas y estocásticos, facilitando el entendimiento de cómo las variables afectan la propagación de una enfermedad.", 
+                       style = "font-size: 16px; line-height: 1.6; color: #2c3e50;")
+                 ),
+                 
+                 # Segunda sección: Cómo empezar
+                 div(style = "margin-bottom: 10px;",
+                     h3("¿Cuáles fueron los parametros?", style = "color: #e74c3c; font-weight: bold;"),
+                     tags$div(
+                       p("Para el modelo determinista, utilizaremos las siguientes ecuaciones diferenciales:")
+                     ),
+                     withMathJax(
+                       tags$div(
+                         "$$\\frac{dS}{dt} = \\mu N - \\frac{\\beta I S}{N} - \\mu S \\quad \\text{(natalidad, infección, muerte)}$$",
+                         "$$\\frac{dI}{dt} = \\frac{\\beta I S}{N} - \\gamma I - \\mu I \\quad \\text{(infección, recuperación, muerte)}$$",
+                         "$$\\frac{dR}{dt} = \\gamma I - \\mu R \\quad \\text{(recuperación, muerte)}$$",
+                         p("La información para los parametros mu y gamma se obtuvieron a partir de una simulación que también utilizaba el modelo SIR, en un estudio realizado por estudiantes de la Universidad de Sevilla.", style = "font-size: 16px; color: #34495e; line-height: 1.8;")
+                       )
+                     ),
+                     tags$div(
+                       p("Por otro lado, para el modelo estocastico, se utilizaron variables aleatorias para generar la simulacion. Para que la simulacion sea mas acertada
+                         decidimos involucrar otras variables que modifiquen el comportamiento de la simulacion conforme avanzan los dias."),
+                       tags$ul(
+                         tags$li("Tasa de infeccion generada por una variable aleatoria."),
+                         tags$li("Probabilidad de que los infectados usen cubrebocas."),
+                         tags$li("Probabilidad de recuperacion."),
+                         tags$li("Probabilidad de que la poblacion este vacunada.")
+                       ),
+                       p("Las condiciones iniciales para cada uno de los modelos ceran una poblacion que se puede seleccionar, y un individuo que este infectado con el viruz.
+                         Ambas simulaciones avanzaran al paso de un dia, donde el tiempo maximo sera de un año o 365 días.")
+                     ),
+                 ),
+                 
+                 # Tercera sección: Beneficios
+                 div(style = "margin-bottom: 10px; padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);",
+                     h3("¿Qué puedes hacer aquí?", style = "color: #3498db; font-weight: bold;"),
+                     tags$ul(
+                       tags$li("Generar gráficos interactivos para analizar la propagación de enfermedades."),
+                       tags$li("Comparar modelos deterministas y estocásticos."),
+                       tags$li("Descargar resultados en formato CSV para análisis adicionales.")
+                     )
+                 )
+             ),
+             
+             # Pie de página con un estilo moderno
+             div(style = "text-align: center; margin-top: 10px; padding: 10px; background-color: #e9ecef; border-top: 2px solid #dcdcdc;",
+                 p("Desarrollado con ❤️ por PURO PADRE | 2024", style = "font-size: 14px; color: #7f8c8d;")
+             )
            )
   ),
   
@@ -49,8 +97,6 @@ ui <- navbarPage(
                conditionalPanel(
                  condition = "input.model_type == 'estocastico'",
                  h4("Parámetros para el Modelo Estocástico"),
-                 numericInput("mu_s", "Tasa de natalidad/mortalidad (mu)", value = 0.05, min = 0, max = 1, step = 0.01),
-                 numericInput("pR_s", "Probabilidad de recuperación (pR)", value = 0.01, min = 0, max = 1, step = 0.01),
                  numericInput("pC_s", "Probabilidad de usar cubrebocas (pC)", value = 0.5, min = 0, max = 1, step = 0.01),
                  numericInput("N_s", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
                ),
@@ -121,8 +167,7 @@ server <- function(input, output) {
     }
     
     if (input$model_type == "estocastico" || input$model_type == "ambos") {
-      mu <- input$mu_s
-      pR <- input$pR_s
+      pR <- 0.01
       pC <- input$pC_s
       N <- input$N_s
       t <- 1:365
@@ -135,11 +180,11 @@ server <- function(input, output) {
       S[1] <- N - I[1] - R[1]
       
       for (day in 2:365) {
-        face_mask <- rbinom(1, S[day - 1], pC)
+        face_mask <- rbinom(1, I[day - 1], pC)
         pI <- runif(1)
         
-        if (S[day - 1] > 0) {
-          effective_pI <- pI * (1 - face_mask / S[day - 1])
+        if (I[day - 1] > 0) {
+          effective_pI <- pI * (1 - face_mask / I[day - 1])
         } else {
           effective_pI <- 0
         }
@@ -218,8 +263,6 @@ server <- function(input, output) {
     }
   })
   
-  
-  # Tablas y descargas
   output$resultsTableDet <- renderTable({
     results_deterministic()
   })
