@@ -30,7 +30,7 @@ ui <- navbarPage(
   tabPanel("Modelaje",
            sidebarLayout(
              sidebarPanel(
-               h4("Selecciona el Modelo"),
+               h6("Configuración (Predisp. SARS-COV2)"),
                # Radio button to select model
                radioButtons("model_type", "Selecciona el Modelo:",
                             choices = list("Determinista" = "determinista", 
@@ -44,7 +44,7 @@ ui <- navbarPage(
                  h4("Parámetros para el Modelo Determinista"),
                  numericInput("mu_d", "Tasa de natalidad/mortalidad (mu)", value = 0.05, min = 0, max = 1, step = 0.01),
                  numericInput("beta_d", "Tasa de transmisión (beta)", value = 0.5, min = 0, max = 2, step = 0.01),
-                 numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.1, min = 0, max = 1, step = 0.01),
+                 numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.25, min = 0, max = 1, step = 0.01),
                  numericInput("N_d", "Tamaño de la población", value = 100, min = 1, max = 10000, step = 1)
                ),
                
