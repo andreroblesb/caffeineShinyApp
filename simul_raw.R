@@ -92,7 +92,7 @@ ui <- navbarPage(
                  numericInput("mu_d", "Tasa de natalidad/mortalidad (mu)", value = 0.001, min = 0, max = 1, step = 0.01),
                  numericInput("beta_d", "Tasa de transmisión (beta)", value = 0.2, min = 0, max = 2, step = 0.01),
                  numericInput("gamma_d", "Tasa de recuperación (gamma)", value = 0.01, min = 0, max = 1, step = 0.01),
-                 sliderInput("N_d", "Tamaño de la población", value = 100, min = 100, max = 10000000, step = 1),
+                 numericInput("N_d", "Tamaño de la población", value = 10000000, min = 100, max = 10000000, step = 1),
                  numericInput("tiempo", "Tiempo de simulacion", value = 365, min = 100, max = 1000, step = 1)
                ),
                
@@ -101,7 +101,7 @@ ui <- navbarPage(
                  h4("Parámetros para el Modelo Estocástico"),
                  numericInput("Inf_I", "Numero de Infectados", value = 1, min = 1, max = 10000, step = 1),
                  numericInput("pC_s", "Probabilidad de usar cubrebocas (pC)", value = 0, min = 0, max = 1, step = 0.01),
-                 sliderInput("N_s", "Tamaño de la población", value = 100, min = 100, max = 10000000, step = 1),
+                 numericInput("N_s", "Tamaño de la población", value = 10000000, min = 100, max = 10000000, step = 1),
                  numericInput("time", "Tiempo de simulacion", value = 365, min = 100, max = 1000, step = 1),
                  numericInput("pV_s", "Probabilidad de Vacunacion", value = 0, min = 0, max = 1, step = 0.01)
                ),
