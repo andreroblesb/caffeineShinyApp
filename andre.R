@@ -14,11 +14,10 @@ ui <- navbarPage(
   # Primera pestaña: Inicio
   tabPanel("Inicio",
            fluidPage(
-             # Encabezado principal con estilo
              div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
                  h2("📊 Simulación de Modelos SIR - Caso de estudio: SARS-COV2", style = "color: #2c3e50; font-weight: bold;")
              ),
-             
+             # Contenido de la pestaña Inicio...
              # Contenido principal
              div(style = "margin: 0 auto; max-width: 900px;",
                  # Primera sección: Descripción de la aplicación
@@ -29,7 +28,7 @@ ui <- navbarPage(
                      p("Incluye opciones para explorar modelos deterministas y estocásticos, facilitando el entendimiento de cómo las variables afectan la propagación de una enfermedad.", 
                        style = "font-size: 16px; line-height: 1.6; color: #2c3e50;"),
                      p("En este caso, la enfermedad más relevante para la época es sin duda el COVID'19. La enfermedad por coronavirus (sARS-COV2) es una enfermedad infecciosa causada por el virus SARS-CoV-2. 
-                       La mayoría de las personas infectadas por el virus experimentarán una enfermedad respiratoria de leve a moderada. Sin embargo, algunas enfermarán gravemente y requerirán atención médica (WHO).",
+                       La mayoría de las personas infectadas por el virus experimentarán una enfermedad respiratoria de leve a moderada. Sin embargo, algunas enfermarán gravemente y requerirán atención médica (WHO). Por esto, es menestér generar aplicaciones enfocadas en el análisis profundo de las causas y como estas producen efectos en poblaciones humanas.",
                        style = "font-size: 16px; line-height: 1.6; font-style: italic; color: #7f8c8d;")
                  ),
                  
@@ -75,6 +74,7 @@ ui <- navbarPage(
              div(style = "text-align: center; margin-top: 10px; padding: 10px; background-color: #e9ecef; border-top: 2px solid #dcdcdc;",
                  p("Desarrollado con ❤️ por PURO PADRE | 2024 | A01706832 | A01707339 | A01701234", style = "font-size: 14px; color: #7f8c8d;")
              )
+             
            )
   ),
   
@@ -88,7 +88,6 @@ ui <- navbarPage(
                                            "Estocástico" = "estocastico", 
                                            "Ambos" = "ambos"),
                             selected = "determinista"),
-               
                # Parámetros visibles solo para los modelos individuales
                conditionalPanel(
                  condition = "input.model_type == 'determinista'",
@@ -137,7 +136,23 @@ ui <- navbarPage(
                           verbatimTextOutput("mseOutput"),
                           fileInput("real_data_file", "Sube el archivo CSV con datos reales:",
                                     accept = c(".csv")),
-                          plotOutput("errorComparisonPlot") # Nueva gráfica de comparación de errores
+                          plotOutput("errorComparisonPlot")
+                 ),
+                 
+                 # Pestaña del Asistente Virtual
+                 tabPanel("Asistente Virtual",
+                          fluidPage(
+                            div(style = "text-align: center; margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 10px;",
+                                h2("Asistente Virtual", style = "color: #2c3e50; font-weight: bold;")
+                            ),
+                            div(style = "margin: 0 auto; max-width: 600px;",
+                                textAreaInput("user_input", label = "Etoy aquí para complementar tu análisis, haz preguntas acerca de los valores de la ventana \"Resultados\".", placeholder = "¿Qué modelo se adecúa mejor los primeros 100 días?"),
+                                actionButton("ask_button", "Preguntar"),
+                                br(),
+                                h4("Respuesta del Asistente:"),
+                                verbatimTextOutput("assistant_response")
+                            )
+                          )
                  )
                )
              )
@@ -145,8 +160,105 @@ ui <- navbarPage(
   )
 )
 
+
 # SERVER
-server <- function(input, output) {
+server <- function(input, output, session) {
+  # Placeholder for the full response and the current typed response
+  full_response <- reactiveVal("") # Full response from the API
+  typed_response <- reactiveVal("") # Gradually typed response
+  
+  # Timer for typing effect
+  typing_timer <- reactiveVal(NULL)
+  
+  # Handle the assistant response logic
+  observeEvent(input$ask_button, {
+    req(input$user_input)  # Ensure there is a question
+    
+    # Reset typed response and timer
+    typed_response("")
+    typing_timer(NULL)
+    
+    # Collect data for the context
+    mse <- if (!is.null(mse_value())) paste("El MSE entre los modelos es:", round(mse_value(), 4)) else "No hay un MSE disponible."
+    det_results <- results_deterministic()
+    sto_results <- results_stochastic()
+    real_data_df <- real_data()
+    
+    # Convert real data to text
+    real_data_text <- if (!is.null(real_data_df)) {
+      paste(capture.output(print(head(real_data_df, 5))), collapse = "\n")
+    } else {
+      "No se proporcionaron datos reales."
+    }
+    
+    # Build the context
+    context <- list(
+      list(role = "system", content = "Eres un asistente virtual para un análisis epidemiológico basado en modelos SIR."),
+      list(role = "user", content = paste(
+        "Pregunta:", input$user_input, "\n",
+        "Información:\n",
+        mse, "\n",
+        "Resultados del modelo determinista (primeros 5 registros):", 
+        if (!is.null(det_results)) paste(capture.output(print(head(det_results, 5))), collapse = "\n") else "No disponible.", "\n",
+        "Resultados del modelo estocástico (primeros 5 registros):", 
+        if (!is.null(sto_results)) paste(capture.output(print(head(sto_results, 5))), collapse = "\n") else "No disponible.", "\n",
+        "Datos reales del CSV (primeros 5 registros):", real_data_text
+      ))
+    )
+    
+    # Make the API call
+    response <- tryCatch({
+      httr::POST(
+        url = "https://api.openai.com/v1/chat/completions",
+        add_headers(Authorization = paste("Bearer", "YOURAPIKEY")), # Replace with your API key
+        content_type_json(),
+        body = toJSON(list(
+          model = "gpt-4",
+          messages = context
+        ), auto_unbox = TRUE)
+      )
+    }, error = function(e) {
+      full_response(paste("Error al conectar con el API de ChatGPT:", e$message))
+      return(NULL)
+    })
+    
+    # Handle response or errors
+    if (is.null(response) || http_type(response) != "application/json") {
+      full_response("Error al conectar con el API de ChatGPT. Revisa tu conexión o la configuración del API Key.")
+    } else {
+      result <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
+      if (!is.null(result$choices) && length(result$choices) > 0) {
+        full_response(result$choices[[1]]$message$content)
+      } else {
+        full_response("No se recibió una respuesta válida del asistente.")
+      }
+    }
+    
+    # Start typing animation
+    response_chars <- strsplit(full_response(), "")[[1]] # Split full response into characters
+    counter <- reactiveVal(1) # Initialize counter
+    
+    typing_timer(invalidateLater(50, session)) # Start the timer (50 ms per character)
+    
+    observeEvent(typing_timer(), {
+      if (counter() <= length(response_chars)) {
+        # Append the next character to the typed response
+        typed_response(paste0(typed_response(), response_chars[counter()]))
+        counter(counter() + 1) # Move to the next character
+        typing_timer(invalidateLater(50, session)) # Continue timer
+      } else {
+        # Stop the timer when the response is fully typed
+        typing_timer(NULL)
+      }
+    })
+  })
+  
+  # Render the animated response
+  output$assistant_response <- renderText({
+    typed_response()
+  })
+  
+  # Reactive values for models
   results_deterministic <- reactiveVal(NULL)
   results_stochastic <- reactiveVal(NULL)
   mse_value <- reactiveVal(NULL)
